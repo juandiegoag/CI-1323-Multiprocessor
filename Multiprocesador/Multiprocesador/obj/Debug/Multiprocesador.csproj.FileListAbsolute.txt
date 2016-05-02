@@ -1,1 +1,2 @@
 C:\Users\Araya\Dropbox\1Semestre2016\Arquitecura\Proyecto\CI-1323-Proyecto-\Multiprocesador\Multiprocesador\bin\Debug\Multiprocesador.exe.config
+C:\Users\Araya\Dropbox\1Semestre2016\Arquitecura\Proyecto\CI-1323-Proyecto-\Multiprocesador\Multiprocesador\obj\Debug\Multiprocesador.csprojResolveAssemblyReference.cache
