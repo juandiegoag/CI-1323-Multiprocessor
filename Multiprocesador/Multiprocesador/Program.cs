@@ -27,9 +27,9 @@ namespace Multiprocesador
 
         public Simulador()
         {
-            cpu1 = new Procesador();
-            cpu2 = new Procesador();
-            cpu3 = new Procesador();
+            cpu1 = new Procesador(1);
+            cpu2 = new Procesador(2);
+            cpu3 = new Procesador(3);
 
         }
 
@@ -41,7 +41,6 @@ namespace Multiprocesador
             Console.Write("Digite el quantum plágurnar");
             quantum = Int32.Parse(Console.ReadLine());
 
-            Console.Write(hilos);
             while (hilos-- > 0)
             {
                 string path = dialog();
@@ -95,19 +94,23 @@ namespace Multiprocesador
         Cache cache;
         Memoria memoria;
         Registros registros;
-        Queue<string> hilosDeInstruccion;
+        Stack<string> hilosDeInstruccion;
+        int id;
 
-        public Procesador()
+        public Procesador(int i)
         {
             cache = new Cache();
             memoria = new Memoria();
             registros = new Registros();
-            hilosDeInstruccion = new Queue<string>();
+            hilosDeInstruccion = new Stack<string>();
+            id = i;
         }
 
         public void asignar(string path)
         {
-            hilosDeInstruccion.Enqueue(abrirArchivo(path));
+            Console.Write("Imprimiendo desde CPU " + id);
+            memoria.almacenarMemoria(abrirArchivo(path));
+            memoria.imprimir();
         }
 
         public void decodificar(int[] instrucciones)
@@ -177,7 +180,7 @@ namespace Multiprocesador
             }
 
         }
-        
+
 
 
 
@@ -185,12 +188,41 @@ namespace Multiprocesador
     }
     class Memoria
     {
-        char[] memoria = new char[256];
+        int[] memoria;
+        int ptrUltimo;
+
+        public Memoria()
+        {
+            memoria = new int[256];
+            ptrUltimo = 0;
+        }
 
         public char[] traerPalabra(int bloque, int palabra)
         {
             char[] satanas = new char[4];
             return satanas;
+        }
+
+        public void almacenarMemoria(string hilo)
+        {
+            //Console.Write(hilo);
+            char[] delimitadores = { ' ', '.' };
+            string[] unnombreahimientrastanto = hilo.Split(delimitadores);
+            for (int i = 0; i < unnombreahimientrastanto.Length - 1; i++)
+            {
+                memoria[i + ptrUltimo] = Convert.ToInt32(unnombreahimientrastanto[i]);
+            }
+            ptrUltimo += unnombreahimientrastanto.Length;
+        }
+
+        public void imprimir()
+        {
+            foreach (int x in memoria)
+            {
+                Console.Write(x);
+                Console.Write(" ");
+            }
+            Console.Write("\n");
         }
     }
 
