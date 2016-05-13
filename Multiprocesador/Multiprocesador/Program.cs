@@ -115,6 +115,7 @@ namespace Multiprocesador
             hilo1.Start();
             hilo2.Start();
             hilo3.Start();
+            Console.ReadKey();
 
         }
     }
@@ -156,20 +157,21 @@ namespace Multiprocesador
                 decodificar(cache.traerPalabra(cP / 4, cP % 4));
                 variablesGlobales.barrera.SignalAndWait();
             }
+            Console.ReadKey();
             Console.Write("TODO EN ORDEN");
         }
 
 
         public void decodificar(int[] instrucciones)
         {
-
+            
             for (int i = 0; i < 4; i++)
             {
                 Console.Write(instrucciones[i] + " ");
             }
             Console.Write("\n");
             Console.ReadKey();
-
+            
 
             switch (instrucciones[0])
             {
@@ -186,7 +188,6 @@ namespace Multiprocesador
 
                 case 63:
                     Console.ReadKey();
-
                     Console.WriteLine("FIN");  //terminar 
                     break;
 
@@ -228,13 +229,13 @@ namespace Multiprocesador
         public int[] traerPalabra(int bloque, int palabra)
         {
             int[] palabraRetornada = new int[4];
-            foreach (int x in bloke)
+            for (int i = 0; i < 4; i++)
             {
-                if (x == bloque)
+                if (bloke[i] == bloque)
                 {
-                    for (int i = 0; i < 4; i++)
+                    for (int j = 0; j < 4; j++)
                     {
-                        palabraRetornada[i] = memoria[(x * 4) + i + (palabra * 4)];
+                        palabraRetornada[j] = memoria[(i*16) + (palabra * 4) + j];
                     }
                     return palabraRetornada;
                 }
@@ -247,6 +248,15 @@ namespace Multiprocesador
             return palabraRetornada;
         }
 
+        public void imprimirMem()
+        {
+            Console.WriteLine("Memoria: ");
+            for (int i = 0; i < 64; i++)
+            {
+                Console.Write(memoria[i] + " ");
+            }
+            Console.Write("fin mem\n");
+        }
 
         public void faloCache(int bloque)
         {
@@ -257,7 +267,6 @@ namespace Multiprocesador
             {
                 memoria[(bloqueActual * 16) + i] = enchilada[i];
             }
-
 
         }
 
