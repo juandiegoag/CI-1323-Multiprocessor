@@ -5,9 +5,11 @@ using System.Text;
 using System.Threading.Tasks;
 using System.IO;
 using System.Windows.Forms;
+using System.Threading;
 
 namespace Multiprocesador
 {
+
     class Program
     {
         [STAThread]
@@ -15,31 +17,56 @@ namespace Multiprocesador
         {
             Simulador S = new Simulador();
             S.iniciar();
+            S.ejecutar();
         }
     }
+
+    public static class variablesGlobales
+    {
+        static int _reloj;
+        public static int reloj
+        {
+            set { _reloj = value; }
+            get { return _reloj; }
+        }
+
+        static int _quantum;
+        public static int quantum
+        {
+            set { _quantum = value; }
+            get { return _quantum; }
+        }
+
+        public static Barrier barrera = new Barrier(3, (b) =>
+        {
+            _reloj++;
+            _quantum--;
+            Console.WriteLine("Barrera");
+        });
+
+    }
+
     class Simulador
     {
-        int reloj; //dame la hora 
-        int quantum;//of solace 
         Procesador cpu1;
         Procesador cpu2;
         Procesador cpu3;
 
         public Simulador()
         {
-            cpu1 = new Procesador(1);
-            cpu2 = new Procesador(2);
-            cpu3 = new Procesador(3);
-
         }
 
         public void iniciar()
         {
-            Console.Write("Digite el numero de hilos");
+            Console.Write("Digite el numero de hilos -> ");
             int hilos = Int32.Parse(Console.ReadLine());
 
-            Console.Write("Digite el quantum plágurnar");
-            quantum = Int32.Parse(Console.ReadLine());
+            Console.Write("Digite el quantum plágurnar -> ");
+            variablesGlobales.quantum = Int32.Parse(Console.ReadLine());
+
+            cpu1 = new Procesador(1);
+            cpu2 = new Procesador(2);
+            cpu3 = new Procesador(3);
 
             while (hilos-- > 0)
             {
@@ -82,6 +109,12 @@ namespace Multiprocesador
 
         public void ejecutar()
         {
+            Thread hilo1 = new Thread(new ThreadStart(cpu1.ejecutar));
+            Thread hilo2 = new Thread(new ThreadStart(cpu2.ejecutar));
+            Thread hilo3 = new Thread(new ThreadStart(cpu3.ejecutar));
+            hilo1.Start();
+            hilo2.Start();
+            hilo3.Start();
 
         }
     }
@@ -89,8 +122,9 @@ namespace Multiprocesador
 
     class Procesador
     {
+        int reloj;
         int cicloActual;
-        int cP;
+        int cP;                  //PC
         Cache cache;
         Memoria memoria;
         Registros registros;
@@ -99,25 +133,49 @@ namespace Multiprocesador
 
         public Procesador(int i)
         {
-            cache = new Cache();
+            reloj = variablesGlobales.quantum;
             memoria = new Memoria();
+            cache = new Cache(memoria);
             registros = new Registros();
             hilosDeInstruccion = new Stack<string>();
             id = i;
+            cP = 0;
         }
 
         public void asignar(string path)
         {
-            Console.Write("Imprimiendo desde CPU " + id);
             memoria.almacenarMemoria(abrirArchivo(path));
-            memoria.imprimir();
+
         }
+
+        public void ejecutar()
+        {
+
+            while (reloj-- > 0)
+            {
+                decodificar(cache.traerPalabra(cP / 4, cP % 4));
+                variablesGlobales.barrera.SignalAndWait();
+            }
+            Console.Write("TODO EN ORDEN");
+        }
+
 
         public void decodificar(int[] instrucciones)
         {
 
+            for (int i = 0; i < 4; i++)
+            {
+                Console.Write(instrucciones[i] + " ");
+            }
+            Console.Write("\n");
+            Console.ReadKey();
+
+
             switch (instrucciones[0])
             {
+                case -1:
+                    cP--;
+                    break;
                 case 8:
                     //even yo wife cslls me daddy
                     break;
@@ -127,7 +185,9 @@ namespace Multiprocesador
                     break;
 
                 case 63:
-                    //terminar 
+                    Console.ReadKey();
+
+                    Console.WriteLine("FIN");  //terminar 
                     break;
 
 
@@ -135,6 +195,7 @@ namespace Multiprocesador
                     break;
 
             }
+            cP++;       //Incrementar PC
 
         }
 
@@ -159,24 +220,58 @@ namespace Multiprocesador
 
     class Cache
     {
-
-        int[] memoria = new int[64]; //4 chars = 1 palabra
+        Memoria disco;
+        int[] memoria = new int[64]; //4 ints = 1 palabra
         int[] bloke = new int[4]; //numero de bloque que se tiene en memoria cache
 
 
-        public char[] traerPalabra(int bloque, int palabra)
+        public int[] traerPalabra(int bloque, int palabra)
         {
-            char[] satanas = new char[4];
-            return satanas;
+            int[] palabraRetornada = new int[4];
+            foreach (int x in bloke)
+            {
+                if (x == bloque)
+                {
+                    for (int i = 0; i < 4; i++)
+                    {
+                        palabraRetornada[i] = memoria[(x * 4) + i + (palabra * 4)];
+                    }
+                    return palabraRetornada;
+                }
+            }
+            faloCache(bloque);
+            for (int i = 0; i < 4; i++)
+            {
+                palabraRetornada[i] = -1;
+            }
+            return palabraRetornada;
         }
 
-        public Cache()
+
+        public void faloCache(int bloque)
         {
+            int bloqueActual = bloque % 4;
+            bloke[bloqueActual] = bloque;
+            int[] enchilada = disco.traerBloque(bloque);
+            for (int i = 0; i < 16; i++)
+            {
+                memoria[(bloqueActual * 16) + i] = enchilada[i];
+            }
 
 
+        }
+
+
+        public Cache(Memoria mem)
+        {
+            disco = mem;
             for (int i = 0; i < 64; i++)
             {
-                memoria[i] = '0';
+                memoria[i] = 0;
+            }
+            for (int i = 0; i < 4; i++)
+            {
+                bloke[i] = -1;
             }
 
         }
@@ -197,22 +292,25 @@ namespace Multiprocesador
             ptrUltimo = 0;
         }
 
-        public char[] traerPalabra(int bloque, int palabra)
+        public int[] traerBloque(int bloque)
         {
-            char[] satanas = new char[4];
-            return satanas;
+            int[] bloqueRetornado = new int[16];
+            for (int i = 0; i < 16; i++)
+            {
+                bloqueRetornado[i] = memoria[(bloque * 16) + i];
+            }
+            return bloqueRetornado;
         }
 
         public void almacenarMemoria(string hilo)
         {
-            //Console.Write(hilo);
             char[] delimitadores = { ' ', '.' };
             string[] unnombreahimientrastanto = hilo.Split(delimitadores);
             for (int i = 0; i < unnombreahimientrastanto.Length - 1; i++)
             {
                 memoria[i + ptrUltimo] = Convert.ToInt32(unnombreahimientrastanto[i]);
             }
-            ptrUltimo += unnombreahimientrastanto.Length;
+            ptrUltimo += unnombreahimientrastanto.Length - 1;
         }
 
         public void imprimir()
