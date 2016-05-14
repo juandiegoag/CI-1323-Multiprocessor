@@ -171,20 +171,40 @@ namespace Multiprocesador
             }
             Console.Write("\n");
             Console.ReadKey();
-            
 
-            switch (instrucciones[0])
+            int i0 = instrucciones[0];
+            int i1 = instrucciones[1];
+            int i2 = instrucciones[2];
+            int i3 = instrucciones[3];
+
+            switch (i0)
             {
+
                 case -1:
                     cP--;
-                    break;
+                break;
+
                 case 8:
-                    //even yo wife cslls me daddy
+                    //registros.insertarValorRegistro((registros.valorRegistro(i1) + i3), i2);
                     break;
+
+                case 32:
+                    //registros.insertarValorRegistro((registros.valorRegistro(i1) + registros.valorRegistro(i2)), i3);
+                    break;
+
+                case 34:
+                break;
+
+                case 12:
+                break;
+
+                case 14:
+                break;
 
                 case 420:
-
-                    break;
+                    Console.WriteLine("Procesador HITS");
+                    Console.WriteLine("FOUR TWENTY. BLAZE. IT. FAGGOT. ");
+                break;
 
                 case 63:
                     Console.ReadKey();
@@ -284,12 +304,8 @@ namespace Multiprocesador
             }
 
         }
-
-
-
-
-
     }
+
     class Memoria
     {
         int[] memoria;
@@ -335,7 +351,20 @@ namespace Multiprocesador
 
     class Registros
     {
-        int[] r = new int[32];
+        int[] r;
+        public Registros()
+        {
+            r = new int[32];
+            r[0] = 0; //registro 0 siempre esta en valor 0
+        }
+
+        public int valorRegistro(int x) {
+            return r[x];
+        }
+
+        public void insertarValorRegistro(int valor, int x) {
+            r[x] = valor;
+        }
 
     }
 
