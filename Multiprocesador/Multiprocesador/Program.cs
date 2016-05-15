@@ -75,20 +75,28 @@ namespace Multiprocesador
                 switch ((hilos % 3) + 1)
                 {
                     case 1:
-                        cpu1.asignar(path);
+                        {
+                            cpu1.asignar(path);
+                            cpu1.numHilos++;
+                        }
                         break;
-
                     case 2:
-                        cpu2.asignar(path);
+                        {
+                            cpu2.asignar(path);
+                            cpu2.numHilos++;
+                        }
                         break;
-
                     case 3:
-                        cpu3.asignar(path);
+                        {
+                            cpu3.asignar(path);
+                            cpu3.numHilos++;
+                        }
                         break;
 
                     default:
                         break;
                 }
+
 
             }
         }
@@ -126,10 +134,13 @@ namespace Multiprocesador
     {
         int reloj;
         int cicloActual;
-        int cP;                  //PC
+        int cP;                         //PC
+        public int numHilos;            //Número de hilos que se le asigna a cada procesador
+        public bool primer;             //booleano que indica si es el primer cambio de contexto que se da en el procesador
         Cache cache;
         Memoria memoria;
-        Registros registros;
+        public Registros registros;
+        public Queue<int[]> colaHilos;
         int id;
 
         public Procesador(int i) //constructor 
@@ -140,6 +151,9 @@ namespace Multiprocesador
             registros = new Registros(); // 32 registros del procesador
             id = i; //ID de procesador
             cP = 0;//contador de programa
+            numHilos = 0;
+            colaHilos = new Queue<int[]>();
+            primer = true;
         }
 
         public void asignar(string path)
@@ -150,14 +164,29 @@ namespace Multiprocesador
 
         public void ejecutar()
         {
+            int hilos = numHilos;
 
-            while (reloj-- > 0)
+            while (hilos-- > 0)
             {
-                decodificar(cache.traerPalabra(cP / 4, cP % 4));//trae la palabra del bloque que el contador de programa indica
-                //y con offset de cP%4 para poder iterar entre los mismos bloques de memoria
-                variablesGlobales.barrera.SignalAndWait(); //hace que todos los hilos lleguen a este punto antes de
-            }//seguir adelante
-            
+                while (reloj-- > 0)
+                {
+                    decodificar(cache.traerPalabra(cP / 4, cP % 4));
+                    variablesGlobales.barrera.SignalAndWait();
+                }
+                if (hilos > 1)
+                {
+                    cambioDeContexto();
+                    hilos--;
+                }
+                else
+                {
+                    Console.Write("El procesador ha terminado su trabajo.");
+                }
+            }
+
+
+            Console.ReadKey();
+            Console.Write("TODO EN ORDEN");
         }
 
 
@@ -245,7 +274,26 @@ namespace Multiprocesador
             cP++;       //Incrementar PC
 
         }
-        
+
+        public void cambioDeContexto()
+        {
+            int[] estadoAnterior = new int[33];
+            estadoAnterior[32] = cP;
+            Array.Copy(registros.reg(), 0, estadoAnterior, 0, 31);//Guarda los registros
+
+            if (primer)
+            {
+                primer = false;
+            }
+            else
+            {
+                int[] nuevoEstado = colaHilos.Dequeue();
+                Array.Copy(nuevoEstado, 0, registros.reg(), 0, 31);
+                cP = nuevoEstado[32];
+            }
+            colaHilos.Enqueue(estadoAnterior);
+        }
+
         private string abrirArchivo(string path) //convierte el archivo que lee del path que se le pasa por parametro
         {//en un unico string pegado 
             return convertirArrayString(File.ReadAllLines(path, Encoding.UTF8));
@@ -385,6 +433,11 @@ namespace Multiprocesador
             r[0] = 0; //registro 0 siempre esta en valor 0
         }
         /**sets y gets**/
+        public int[] reg()
+        {
+            return r;
+        }
+
         public int valorRegistro(int x) {
             return r[x];
         }
