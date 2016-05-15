@@ -82,23 +82,24 @@ namespace Multiprocesador
             while (hilos-- > 0)//se dividen los hilos entre los tres cpu repartidos al 1,2,3,3,2,1,2,... y asi 
             {//sucesivamente por cuantos hilos hayan 
                 string path = dialog();//ventana de eleccion de archivos
+                List<int> lista = leerHilo(abrirArchivo(path)); //se crea una lista de enteros a partir del archivo
                 switch ((hilos % 3) + 1)
                 {
                     case 1:
                         {
-                            cpu1.asignar(path);
+                            cpu1.asignar(lista);
                             cpu1.numHilos++;
                         }
                         break;
                     case 2:
                         {
-                            cpu2.asignar(path);
+                            cpu2.asignar(lista);
                             cpu2.numHilos++;
                         }
                         break;
                     case 3:
                         {
-                            cpu3.asignar(path);
+                            cpu3.asignar(lista);
                             cpu3.numHilos++;
                         }
                         break;
@@ -111,6 +112,38 @@ namespace Multiprocesador
             Console.Write(cpu2.numHilos + " hilos cargados al Procesador " + cpu2.id + "\n");
             Console.Write(cpu1.numHilos + " hilos cargados al Procesador " + cpu1.id + "\n");
             Console.Write(cpu3.numHilos + " hilos cargados al Procesador " + cpu3.id + "\n");
+        }
+
+
+        private string abrirArchivo(string path) //convierte el archivo que lee del path que se le pasa por parametro
+        {//en un unico string pegado 
+            return convertirArrayString(File.ReadAllLines(path, Encoding.UTF8));
+        }
+
+
+
+        public static string convertirArrayString(string[] array)//recibe un string[] y lo transforma en string
+        {//usando StringBuilder
+            StringBuilder builder = new StringBuilder();
+            foreach (string value in array)
+            {
+                builder.Append(value);
+                builder.Append('.');
+            }
+            return builder.ToString();
+        }
+
+
+        public List<int> leerHilo(string hilo)
+        {
+            char[] delimitadores = { ' ', '.' };
+            string[] arregloInstrucciones = hilo.Split(delimitadores);
+            List<int> listaInstrucciones = new List<int>();
+            for (int i = 0; i < arregloInstrucciones.Length - 1; i++)
+            {//obtiene los metodos del string que no son cualquiera de los anteriores, los convierte a int y los guarda
+                listaInstrucciones.Add(Convert.ToInt32(arregloInstrucciones[i]));//en memoria segun el offset que se le diga
+            }
+            return listaInstrucciones;
         }
 
         public string dialog()//ventana para escoger archivos
@@ -168,10 +201,19 @@ namespace Multiprocesador
             primer = true;
         }
 
-        public void asignar(string path)
+        public void asignar(List<int> listaInstrucciones)
         {
-            memoria.almacenarMemoria(abrirArchivo(path));//guarda en memoria el hilillo que se le ponga
+            int cPInicialDelHilo = memoria.almacenarMemoria(listaInstrucciones) / 4;//guarda en memoria el hilillo que se le ponga
+            crearContexto(cPInicialDelHilo);
+        }
 
+
+        public void crearContexto(int cPdelHilo)
+        {
+            int[] contextoNuevo = new int[33];
+            contextoNuevo[32] = cPdelHilo;
+            colaHilos.Enqueue(contextoNuevo);
+            Console.WriteLine("ContextoCreado");
         }
 
         public void reestablecerQuantum()
@@ -180,9 +222,13 @@ namespace Multiprocesador
             Console.Write("Reestableciendo quantum a "+ variablesGlobales.q + " \n");
         }
 
+
         public void ejecutar()
         {
-
+            if (numHilos > 0)
+            {
+                insertarContexto(); //inserta el contexto inicial
+            }
             while (numHilos > 0)
             {
                 Console.Write("Hilos restantes: "+numHilos+"\n");
@@ -306,26 +352,20 @@ namespace Multiprocesador
             Console.ReadKey();
             Console.Write("Cambio de contexto. ");
             int[] estadoAnterior = new int[33];
+            Array.Copy(registros.reg(), 0, estadoAnterior, 0, 32);//Guarda los registros
             estadoAnterior[32] = cP;
             Console.Write("Viejo CP es: " + cP + "\n");
-            Array.Copy(registros.reg(), 0, estadoAnterior, 0, 31);//Guarda los registros
             colaHilos.Enqueue(estadoAnterior);
-
             Console.Write("Cargando registros de contexto nuevo");
-            int[] nuevoEstado = colaHilos.Dequeue();
-            Array.Copy(nuevoEstado, 0, registros.reg(), 0, 31);
-
-            if (primer)//Hay que quitar este if
-            {
-                //cP = memoria.indiceHilos[];
-            }
-            else
-            {
-                cP = nuevoEstado[32];
-            }
-
+            insertarContexto();
             Console.Write("Nuevo CP es: "+ cP +"\n");
-            
+        }
+
+        public void insertarContexto()
+        {
+            int[] nuevoEstado = colaHilos.Dequeue();
+            registros.setReg(nuevoEstado);
+            cP = nuevoEstado[32];
         }
 
         private string abrirArchivo(string path) //convierte el archivo que lee del path que se le pasa por parametro
@@ -439,16 +479,16 @@ namespace Multiprocesador
             return bloqueRetornado;
         }
 
-        public void almacenarMemoria(string hilo)//se le envia un string entero con el contenido de un hilillo
+        public int almacenarMemoria(List<int> instrucciones)//se le envia una lista de enteros con el contenido de un hilillo, retorna posicion inicial de hilillo
         {//que ya fue concatenado por espacios vacios y '.'
-            char[] delimitadores = { ' ', '.' };
-            string[] unnombreahimientrastanto = hilo.Split(delimitadores);
-            for (int i = 0; i < unnombreahimientrastanto.Length - 1; i++)
+            for (int i = 0; i < instrucciones.Count; i++) //no copia el ultimo, que es el cP
             {//obtiene los metodos del string que no son cualquiera de los anteriores, los convierte a int y los guarda
-                memoria[i + ptrUltimo] = Convert.ToInt32(unnombreahimientrastanto[i]);//en memoria segun el offset que se le diga
+                memoria[i + ptrUltimo] = instrucciones[i];//en memoria segun el offset que se le diga
             }
-            indiceHilos.Add(ptrUltimo);
-            ptrUltimo += unnombreahimientrastanto.Length - 1;//actualiza el offset
+            int ptrUltimoRetornado = ptrUltimo; //conserva la posicion inicial del hilillo
+            ptrUltimo += instrucciones.Count;//actualiza el offset
+            imprimir();
+            return ptrUltimoRetornado;  // retorna posicion inicial de hilillo
         }
 
         public void imprimir() //imprime la memoria
@@ -467,13 +507,19 @@ namespace Multiprocesador
         int[] r;
         public Registros()
         {
-            r = new int[32];
+            r = new int[33];
             r[0] = 0; //registro 0 siempre esta en valor 0
+            //registro 32 es cP
         }
         /**sets y gets**/
         public int[] reg()
         {
             return r;
+        }
+
+        public void setReg(int[] regs)
+        {
+            Array.Copy(regs, r, 33);
         }
 
         public int valorRegistro(int x) {
