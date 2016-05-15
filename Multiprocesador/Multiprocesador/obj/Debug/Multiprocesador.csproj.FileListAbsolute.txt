@@ -13,3 +13,8 @@ C:\Users\Araya\Dropbox\1Semestre2016\Arquitecura\Proyecto\Multiprocesador\Multip
 C:\Users\Araya\Dropbox\1Semestre2016\Arquitecura\Proyecto\Multiprocesador\Multiprocesador\bin\Debug\Multiprocesador.exe
 C:\Users\Araya\Dropbox\1Semestre2016\Arquitecura\Proyecto\Multiprocesador\Multiprocesador\bin\Debug\Multiprocesador.pdb
 C:\Users\Araya\Dropbox\1Semestre2016\Arquitecura\Proyecto\Multiprocesador\Multiprocesador\obj\Debug\Multiprocesador.csprojResolveAssemblyReference.cache
+C:\Users\rick9\Documents\GitHub\CI-1323-Proyecto-\Multiprocesador\Multiprocesador\bin\Debug\Multiprocesador.exe
+C:\Users\rick9\Documents\GitHub\CI-1323-Proyecto-\Multiprocesador\Multiprocesador\bin\Debug\Multiprocesador.pdb
+C:\Users\rick9\Documents\GitHub\CI-1323-Proyecto-\Multiprocesador\Multiprocesador\obj\Debug\Multiprocesador.csprojResolveAssemblyReference.cache
+C:\Users\rick9\Documents\GitHub\CI-1323-Proyecto-\Multiprocesador\Multiprocesador\obj\Debug\Multiprocesador.exe
+C:\Users\rick9\Documents\GitHub\CI-1323-Proyecto-\Multiprocesador\Multiprocesador\obj\Debug\Multiprocesador.pdb

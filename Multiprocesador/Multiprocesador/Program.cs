@@ -38,6 +38,14 @@ namespace Multiprocesador
             get { return _quantum; }
         }
 
+        static int _q;
+        public static int q
+        {
+            set { _q = value; }
+            get { return _q; }
+        }
+
+
         public static Barrier barrera = new Barrier(3, (b) =>//instancia de una barrera global que espera la llegada
         {                                                    //de 3 hilos, y luego ejecuta el codigo en la funcion (b)
             _reloj++;
@@ -49,7 +57,8 @@ namespace Multiprocesador
 
     class Simulador
     {
-        Procesador cpu1;//instancias de los tres procesadores en cuestion
+        //instancias de los tres procesadores en cuestion
+        Procesador cpu1;
         Procesador cpu2;
         Procesador cpu3;
 
@@ -64,6 +73,7 @@ namespace Multiprocesador
 
             Console.Write("Digite el quantum plágurnar -> ");//quantum para todos
             variablesGlobales.quantum = Int32.Parse(Console.ReadLine());
+            variablesGlobales.q = variablesGlobales.quantum;
 
             cpu1 = new Procesador(1);//crea los procesadores con el quantum, y les asigna su ID
             cpu2 = new Procesador(2);
@@ -97,8 +107,10 @@ namespace Multiprocesador
                         break;
                 }
 
-
             }
+            Console.Write(cpu2.numHilos + " hilos cargados al Procesador " + cpu2.id + "\n");
+            Console.Write(cpu1.numHilos + " hilos cargados al Procesador " + cpu1.id + "\n");
+            Console.Write(cpu3.numHilos + " hilos cargados al Procesador " + cpu3.id + "\n");
         }
 
         public string dialog()//ventana para escoger archivos
@@ -132,25 +144,25 @@ namespace Multiprocesador
 
     class Procesador
     {
-        int reloj;
+        public int reloj;
         int cicloActual;
         int cP;                         //PC
         public int numHilos;            //Número de hilos que se le asigna a cada procesador
         public bool primer;             //booleano que indica si es el primer cambio de contexto que se da en el procesador
         Cache cache;
-        Memoria memoria;
+        public Memoria memoria;
         public Registros registros;
         public Queue<int[]> colaHilos;
-        int id;
+        public int id;
 
         public Procesador(int i) //constructor 
         {
             reloj = variablesGlobales.quantum; //quantum global, digitado por el usuario
             memoria = new Memoria(); //memoria del procesador
-            cache = new Cache(memoria);//cache del procesador, y se le envia la memoria del CPU para poder retribuir datos
+            cache = new Cache(memoria); //cache del procesador, y se le envia la memoria del CPU para poder retribuir datos
             registros = new Registros(); // 32 registros del procesador
             id = i; //ID de procesador
-            cP = 0;//contador de programa
+            cP = 0; //contador de programa
             numHilos = 0;
             colaHilos = new Queue<int[]>();
             primer = true;
@@ -162,52 +174,63 @@ namespace Multiprocesador
 
         }
 
+        public void reestablecerQuantum()
+        {
+            reloj = variablesGlobales.q;
+            Console.Write("Reestableciendo quantum a "+ variablesGlobales.q + " \n");
+        }
+
         public void ejecutar()
         {
-            int hilos = numHilos;
 
-            while (hilos-- > 0)
+            while (numHilos > 0)
             {
+                Console.Write("Hilos restantes: "+numHilos+"\n");
+                Console.Write("Quantum de proceso "+id+": "+reloj+"\n");
+                Console.ReadKey();
+
                 while (reloj-- > 0)
                 {
                     decodificar(cache.traerPalabra(cP / 4, cP % 4));
                     variablesGlobales.barrera.SignalAndWait();
                 }
-                if (hilos > 1)
+                if (numHilos >= 1)
                 {
                     cambioDeContexto();
-                    hilos--;
+                    reestablecerQuantum();
+                   
                 }
                 else
                 {
-                    Console.Write("El procesador ha terminado su trabajo.");
+                    Console.Write("El procesador " + id + " ha terminado su trabajo.\n ");
                 }
             }
 
 
-            Console.ReadKey();
             Console.Write("TODO EN ORDEN");
+            Console.ReadKey();
         }
 
 
         public void decodificar(int[] instrucciones)
-        {//metodo que se encarga de decodificar los sets de instrucciones de 4 argumentos, y mapearlos en su correspondiente
+        {
+            //metodo que se encarga de decodificar los sets de instrucciones de 4 argumentos, y mapearlos en su correspondiente
             //funcion en MIPS DADDI, DADD, DMUL, ...
-            
+            Console.Write("Procesador " + id + " ejecutando instruccion:\n");
             for (int i = 0; i < 4; i++)
             {
-                Console.Write(instrucciones[i] + " ");
+                Console.Write( instrucciones[i] + " ");
             }
             Console.Write("\n");
             Console.ReadKey();
 
-            int i0 = instrucciones[0]; //codigo de instruccion
+            int codigoOp = instrucciones[0]; //codigo de instruccion
             /*registros o inmediatos */
             int i1 = instrucciones[1]; 
             int i2 = instrucciones[2];
             int i3 = instrucciones[3];
 
-            switch (i0)
+            switch (codigoOp)
             {
 
                 case -1:
@@ -241,7 +264,8 @@ namespace Multiprocesador
                 break;
 
                 case 5:
-                    if (registros.valorRegistro(i2) != 0){
+                    if (registros.valorRegistro(i2) != 0)
+                    {
                         cP += i3;
                     }
                 break;
@@ -254,11 +278,13 @@ namespace Multiprocesador
                 case 2:
                     cP = registros.valorRegistro(i1);
                 break;
-
                 case 63:
-                    registros.imprimir();
-                    Console.ReadKey();
-                    Console.WriteLine("FIN");  //terminar 
+                    {
+                        numHilos--;
+                        registros.imprimir();
+                        Console.ReadKey();
+                        Console.WriteLine("FIN");  //terminar 
+                    }
                     //quantum = 0?? Cambiar de contexto??
                 break;
 
@@ -277,21 +303,29 @@ namespace Multiprocesador
 
         public void cambioDeContexto()
         {
+            Console.ReadKey();
+            Console.Write("Cambio de contexto. ");
             int[] estadoAnterior = new int[33];
             estadoAnterior[32] = cP;
+            Console.Write("Viejo CP es: " + cP + "\n");
             Array.Copy(registros.reg(), 0, estadoAnterior, 0, 31);//Guarda los registros
+            colaHilos.Enqueue(estadoAnterior);
 
-            if (primer)
+            Console.Write("Cargando registros de contexto nuevo");
+            int[] nuevoEstado = colaHilos.Dequeue();
+            Array.Copy(nuevoEstado, 0, registros.reg(), 0, 31);
+
+            if (primer)//Hay que quitar este if
             {
-                primer = false;
+                //cP = memoria.indiceHilos[];
             }
             else
             {
-                int[] nuevoEstado = colaHilos.Dequeue();
-                Array.Copy(nuevoEstado, 0, registros.reg(), 0, 31);
                 cP = nuevoEstado[32];
             }
-            colaHilos.Enqueue(estadoAnterior);
+
+            Console.Write("Nuevo CP es: "+ cP +"\n");
+            
         }
 
         private string abrirArchivo(string path) //convierte el archivo que lee del path que se le pasa por parametro
@@ -326,6 +360,7 @@ namespace Multiprocesador
             {
                 memoria[i] = 0;
             }
+
             for (int i = 0; i < 4; i++)
             {
                 bloke[i] = -1;
@@ -383,17 +418,19 @@ namespace Multiprocesador
 
     class Memoria
     {
-        int[] memoria;//array de memoria "disco"
-        int ptrUltimo;//puntero a la ultima posicion con datos de memoria, se utiliza como offset
+        int[] memoria; //array de memoria "disco"
+        int ptrUltimo; //puntero a la ultima posicion con datos de memoria, se utiliza como offset 
+        public List<int> indiceHilos;
 
         public Memoria()
         {
             memoria = new int[256];
+            indiceHilos = new List<int>();
             ptrUltimo = 0; //comienza en cero
         }
 
         public int[] traerBloque(int bloque)//trae el numero de bloque que se le pide, considerando que
-        {//los bloques son de tamano 16, y la memoria es un arreglo lineal
+        {                                   //los bloques son de tamano 16, y la memoria es un arreglo lineal
             int[] bloqueRetornado = new int[16];
             for (int i = 0; i < 16; i++)
             {
@@ -410,6 +447,7 @@ namespace Multiprocesador
             {//obtiene los metodos del string que no son cualquiera de los anteriores, los convierte a int y los guarda
                 memoria[i + ptrUltimo] = Convert.ToInt32(unnombreahimientrastanto[i]);//en memoria segun el offset que se le diga
             }
+            indiceHilos.Add(ptrUltimo);
             ptrUltimo += unnombreahimientrastanto.Length - 1;//actualiza el offset
         }
 
