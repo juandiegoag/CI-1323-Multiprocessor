@@ -50,7 +50,6 @@ namespace Multiprocesador
         {                                                    //de 3 hilos, y luego ejecuta el codigo en la funcion (b)
             _reloj++;
             _quantum--;
-            Console.WriteLine("Barrera");
         });
 
     }
@@ -187,6 +186,8 @@ namespace Multiprocesador
         public Registros registros;
         public Queue<int[]> colaHilos;
         public int id;
+        int suspendido;
+        Logger log;
 
         public Procesador(int i) //constructor 
         {
@@ -199,6 +200,8 @@ namespace Multiprocesador
             numHilos = 0;
             colaHilos = new Queue<int[]>();
             primer = true;
+            suspendido = 0;
+            log = new Logger(i);
         }
 
         public void asignar(List<int> listaInstrucciones)
@@ -213,13 +216,13 @@ namespace Multiprocesador
             int[] contextoNuevo = new int[33];
             contextoNuevo[32] = cPdelHilo;
             colaHilos.Enqueue(contextoNuevo);
-            Console.WriteLine("ContextoCreado");
+            log.imprimir("ContextoCreado");
         }
 
         public void reestablecerQuantum()
         {
             reloj = variablesGlobales.q;
-            Console.Write("Reestableciendo quantum a "+ variablesGlobales.q + " \n");
+            log.imprimir("Reestableciendo quantum a "+ variablesGlobales.q + " \n");
         }
 
 
@@ -231,13 +234,19 @@ namespace Multiprocesador
             }
             while (numHilos > 0)
             {
-                Console.Write("Hilos restantes: "+numHilos+"\n");
-                Console.Write("Quantum de proceso "+id+": "+reloj+"\n");
-                Console.ReadKey();
+                log.imprimir("Hilos restantes: "+numHilos+"\n");
+                log.imprimir("Quantum de proceso "+id+": "+reloj+"\n");
+                
 
                 while (reloj-- > 0)
                 {
-                    decodificar(cache.traerPalabra(cP / 4, cP % 4));
+                    if (suspendido == 0) {
+                        decodificar(cache.traerPalabra(cP / 4, cP % 4));
+                    }
+                    else{
+                        log.imprimir("Fallo de cache, procesador suspendido por "+suspendido+" ciclos restantes \n");
+                        suspendido--;
+                    }
                     variablesGlobales.barrera.SignalAndWait();
                 }
                 if (numHilos >= 1)
@@ -248,13 +257,12 @@ namespace Multiprocesador
                 }
                 else
                 {
-                    Console.Write("El procesador " + id + " ha terminado su trabajo.\n ");
+                    log.imprimir("El procesador " + id + " ha terminado su trabajo.\n ");
                 }
             }
+            variablesGlobales.barrera.RemoveParticipant();
 
-
-            Console.Write("TODO EN ORDEN");
-            Console.ReadKey();
+            log.exportarResultados();
         }
 
 
@@ -262,13 +270,13 @@ namespace Multiprocesador
         {
             //metodo que se encarga de decodificar los sets de instrucciones de 4 argumentos, y mapearlos en su correspondiente
             //funcion en MIPS DADDI, DADD, DMUL, ...
-            Console.Write("Procesador " + id + " ejecutando instruccion:\n");
+            log.imprimir("Procesador " + id + " ejecutando instruccion:\n");
             for (int i = 0; i < 4; i++)
             {
-                Console.Write( instrucciones[i] + " ");
+                log.imprimir( instrucciones[i] + " ");
             }
-            Console.Write("\n");
-            Console.ReadKey();
+            log.imprimir("\n");
+             
 
             int codigoOp = instrucciones[0]; //codigo de instruccion
             /*registros o inmediatos */
@@ -280,13 +288,13 @@ namespace Multiprocesador
             {
 
                 case -1:
+                    suspendido = 16;
                     cP--;
                 break;
-
+                    /***** OPERACIONES ARITMETICAS BASICAS *****/
                 case 8:
                     registros.insertarValorRegistro((registros.valorRegistro(i1) + i3), i2); //suma de registro con inmediato
                 break;
-                    /***** OPERACIONES ARITMETICAS BASICAS *****/
                 case 32:
                     registros.insertarValorRegistro((registros.valorRegistro(i1) + registros.valorRegistro(i2)), i3);
                 break;
@@ -304,13 +312,13 @@ namespace Multiprocesador
                 break;
                     /***BRANCHING Y DEMAS***/
                 case 4:
-                    if (registros.valorRegistro(i2) == 0){
+                    if (registros.valorRegistro(i1) == 0){
                         cP += i3;
                     }
                 break;
 
                 case 5:
-                    if (registros.valorRegistro(i2) != 0)
+                    if (registros.valorRegistro(i1) != 0)
                     {
                         cP += i3;
                     }
@@ -318,20 +326,16 @@ namespace Multiprocesador
 
                 case 3:
                     registros.insertarValorRegistro(cP, 31);
-                    cP += i3;
+                    cP += i3/4;
                 break;
 
                 case 2:
                     cP = registros.valorRegistro(i1);
                 break;
                 case 63:
-                    {
                         numHilos--;
-                        registros.imprimir();
-                        Console.ReadKey();
-                        Console.WriteLine("FIN");  //terminar 
-                    }
-                    //quantum = 0?? Cambiar de contexto??
+                        log.imprimir(registros.imprimir());
+                        log.imprimir("\n FIN \n");  //terminar 
                 break;
 
                 case 420:
@@ -349,16 +353,15 @@ namespace Multiprocesador
 
         public void cambioDeContexto()
         {
-            Console.ReadKey();
-            Console.Write("Cambio de contexto. ");
+            log.imprimir("Cambio de contexto. ");
             int[] estadoAnterior = new int[33];
             Array.Copy(registros.reg(), 0, estadoAnterior, 0, 32);//Guarda los registros
             estadoAnterior[32] = cP;
-            Console.Write("Viejo CP es: " + cP + "\n");
+            log.imprimir("Viejo CP es: " + cP + "\n");
             colaHilos.Enqueue(estadoAnterior);
-            Console.Write("Cargando registros de contexto nuevo");
+            log.imprimir("Cargando registros de contexto nuevo");
             insertarContexto();
-            Console.Write("Nuevo CP es: "+ cP +"\n");
+            log.imprimir("Nuevo CP es: "+ cP +"\n");
         }
 
         public void insertarContexto()
@@ -464,9 +467,9 @@ namespace Multiprocesador
 
         public Memoria()
         {
-            memoria = new int[256];
+            memoria = new int[384];
             indiceHilos = new List<int>();
-            ptrUltimo = 0; //comienza en cero
+            ptrUltimo = 128; //comienza en ocho
         }
 
         public int[] traerBloque(int bloque)//trae el numero de bloque que se le pide, considerando que
@@ -530,14 +533,38 @@ namespace Multiprocesador
             r[x] = valor;
         }
         //Imprime los registros 
-        public void imprimir() {
+        public string imprimir() {
+            string regs = "";
             for (int i = 0; i < 32; i++) {
-                Console.Write("R" + i + ": "+r[i]+"\t");
+                regs+=("R" + i + ": "+r[i]+"\t");
                 if (i%8 == 0) {
-                    Console.Write("\n");
+                    regs+=("\n");
                 }
             }
+            return regs;
         }
+
+    }
+
+    class Logger {
+        string global;
+        string fileName;
+        string path;
+
+        public Logger(int i) {
+            fileName = "cpu" + i;
+            path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, fileName); ;
+            global = "";
+        }
+
+        public void imprimir(string texto) {
+            global += texto;
+        }
+
+        public void exportarResultados() {
+            File.WriteAllText(path, global);
+        }
+
 
     }
 
