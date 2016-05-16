@@ -168,8 +168,7 @@ namespace Multiprocesador
             hilo1.Start();//le da inicio a cada uno de los threads
             hilo2.Start();
             hilo3.Start();
-            Console.ReadKey();
-
+            Console.WriteLine("Simulacion finalizada. ");
         }
     }
 
@@ -188,6 +187,8 @@ namespace Multiprocesador
         public int id;
         int suspendido;
         Logger log;
+        int ciclosPorHilo;
+        
 
         public Procesador(int i) //constructor 
         {
@@ -202,6 +203,8 @@ namespace Multiprocesador
             primer = true;
             suspendido = 0;
             log = new Logger(i);
+            ciclosPorHilo = 0;
+
         }
 
         public void asignar(List<int> listaInstrucciones)
@@ -238,8 +241,9 @@ namespace Multiprocesador
                 log.imprimir("Quantum de proceso "+id+": "+reloj+"\n");
                 
 
-                while (reloj-- > 0)
+                while (reloj-- > 0 && numHilos > 0)
                 {
+                    ciclosPorHilo++;
                     if (suspendido == 0) {
                         decodificar(cache.traerPalabra(cP / 4, cP % 4));
                     }
@@ -333,9 +337,12 @@ namespace Multiprocesador
                     cP = registros.valorRegistro(i1);
                 break;
                 case 63:
-                        numHilos--;
-                        log.imprimir(registros.imprimir());
-                        log.imprimir("\n FIN \n");  //terminar 
+                    numHilos--;
+                    log.imprimir("\nHilo finalizado en el procesador: " + id); 
+                    log.imprimir("\nTotal de ciclos para la ejecucion del hilo: " + ciclosPorHilo+ "\n");
+                    ciclosPorHilo = 0;
+                    log.imprimir(registros.imprimir());
+                    log.imprimir("\n FIN \n");  //terminar 
                 break;
 
                 case 420:
@@ -490,7 +497,6 @@ namespace Multiprocesador
             }
             int ptrUltimoRetornado = ptrUltimo; //conserva la posicion inicial del hilillo
             ptrUltimo += instrucciones.Count;//actualiza el offset
-            imprimir();
             return ptrUltimoRetornado;  // retorna posicion inicial de hilillo
         }
 
