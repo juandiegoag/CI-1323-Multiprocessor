@@ -171,6 +171,9 @@ namespace Multiprocesador
             hilo2.Start();
             hilo3.Start();
             Console.WriteLine("Simulacion finalizada. ");
+            hilo1.Abort();
+            hilo2.Abort();
+            hilo3.Abort();
         }
     }
 
@@ -279,6 +282,7 @@ namespace Multiprocesador
             log.imprimir("El procesador " + id + " ha terminado su trabajo.\n ");
             variablesGlobales.barrera.RemoveParticipant();
             log.exportarResultados();
+
         }
 
 
@@ -440,7 +444,7 @@ namespace Multiprocesador
                     return palabraRetornada;
                 }
             }
-            faloCache(bloque);
+            falloCache(bloque);
             for (int i = 0; i < 4; i++)
             {
                 palabraRetornada[i] = -1;
@@ -449,7 +453,7 @@ namespace Multiprocesador
         }
 
 
-        public void faloCache(int bloque) //metodo que maneja el fallo de cache
+        public void falloCache(int bloque) //metodo que maneja el fallo de cache
         {
             int bloqueActual = bloque % 4;//offset para manejar la posicion dle nuevo bloque
             bloke[bloqueActual] = bloque;//cambia en el array que mapea los bloques en cache por el nuevo bloque
