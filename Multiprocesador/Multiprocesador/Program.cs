@@ -18,6 +18,7 @@ namespace Multiprocesador
             Simulador S = new Simulador(); //crea la instancia del simulador
             S.iniciar();
             S.ejecutar();
+            Console.ReadKey();
         }
     }
 
@@ -70,7 +71,7 @@ namespace Multiprocesador
             Console.Write("Digite el numero de hilos -> ");//numero de hilillos
             int hilos = Int32.Parse(Console.ReadLine());
 
-            Console.Write("Digite el quantum plágurnar -> ");//quantum para todos
+            Console.Write("Digite el quantum -> ");//quantum para todos
             variablesGlobales.quantum = Int32.Parse(Console.ReadLine());
             variablesGlobales.q = variablesGlobales.quantum;
 
@@ -82,6 +83,7 @@ namespace Multiprocesador
             {//sucesivamente por cuantos hilos hayan 
                 string path = dialog();//ventana de eleccion de archivos
                 List<int> lista = leerHilo(abrirArchivo(path)); //se crea una lista de enteros a partir del archivo
+                Console.WriteLine("Hilo " + path + " asignado a cpu " + ((hilos % 3) + 1));
                 switch ((hilos % 3) + 1)
                 {
                     case 1:
@@ -188,6 +190,7 @@ namespace Multiprocesador
         int suspendido;
         Logger log;
         int ciclosPorHilo;
+        bool finit;
         
 
         public Procesador(int i) //constructor 
@@ -220,6 +223,7 @@ namespace Multiprocesador
             contextoNuevo[32] = cPdelHilo;
             colaHilos.Enqueue(contextoNuevo);
             log.imprimir("ContextoCreado");
+            finit = false;
         }
 
         public void reestablecerQuantum()
@@ -244,28 +248,36 @@ namespace Multiprocesador
                 while (reloj-- > 0 && numHilos > 0)
                 {
                     ciclosPorHilo++;
-                    if (suspendido == 0) {
+                    if (suspendido == 0 && finit == false) {
                         decodificar(cache.traerPalabra(cP / 4, cP % 4));
                     }
-                    else{
+                    else if (suspendido > 0 && finit == false)
+                    {
                         log.imprimir("Fallo de cache, procesador suspendido por "+suspendido+" ciclos restantes \n");
                         suspendido--;
                     }
                     variablesGlobales.barrera.SignalAndWait();
                 }
-                if (numHilos >= 1)
+                if (finit)
                 {
-                    cambioDeContexto();
-                    reestablecerQuantum();
-                   
+                    if (numHilos >= 1)
+                    {
+                        insertarContexto();
+                        reestablecerQuantum();
+                    }
                 }
                 else
                 {
-                    log.imprimir("El procesador " + id + " ha terminado su trabajo.\n ");
+                    if (numHilos >= 1)
+                    {
+                        cambioDeContexto();
+                        reestablecerQuantum();
+                    }
                 }
-            }
-            variablesGlobales.barrera.RemoveParticipant();
 
+            }
+            log.imprimir("El procesador " + id + " ha terminado su trabajo.\n ");
+            variablesGlobales.barrera.RemoveParticipant();
             log.exportarResultados();
         }
 
@@ -341,13 +353,9 @@ namespace Multiprocesador
                     log.imprimir("\nHilo finalizado en el procesador: " + id); 
                     log.imprimir("\nTotal de ciclos para la ejecucion del hilo: " + ciclosPorHilo+ "\n");
                     ciclosPorHilo = 0;
+                    finit = true;
                     log.imprimir(registros.imprimir());
                     log.imprimir("\n FIN \n");  //terminar 
-                break;
-
-                case 420:
-                    Console.WriteLine("Procesador HITS");
-                    Console.WriteLine("FOUR TWENTY. BLAZE. IT. FAGGOT. ");
                 break;
 
                 default:
@@ -376,6 +384,7 @@ namespace Multiprocesador
             int[] nuevoEstado = colaHilos.Dequeue();
             registros.setReg(nuevoEstado);
             cP = nuevoEstado[32];
+            finit = false;
         }
 
         private string abrirArchivo(string path) //convierte el archivo que lee del path que se le pasa por parametro
