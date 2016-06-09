@@ -194,7 +194,9 @@ namespace Multiprocesador
         Logger log;
         int ciclosPorHilo;
         bool finit;
-        
+        cacheDatos cacheD;
+        Directorio dir;
+
 
         public Procesador(int i) //constructor 
         {
@@ -210,7 +212,8 @@ namespace Multiprocesador
             suspendido = 0;
             log = new Logger(i);
             ciclosPorHilo = 0;
-
+            cacheD = new cacheDatos();
+            dir = new Directorio();
         }
 
         public void asignar(List<int> listaInstrucciones)
@@ -479,17 +482,41 @@ namespace Multiprocesador
 
     }
 
+    class cacheDatos
+    {
+        int[] datos;
+        int[] etiqueta;
+        char[] estado;
+
+        public cacheDatos() {
+            etiqueta = new int[4];
+            datos = new int[16];
+            estado = new char[4];
+
+            for (int i = 0; i < 4; i++) {
+                etiqueta[i] = -1;
+                estado[i] = 'U';
+            }
+            for (int i = 0; i < 16; i++)
+            {
+                datos[i] = 0;
+            }
+
+        }
+    }
+
     class Memoria
     {
         int[] memoria; //array de memoria "disco"
         int ptrUltimo; //puntero a la ultima posicion con datos de memoria, se utiliza como offset 
         public List<int> indiceHilos;
-
+        int[] memoriaC;
         public Memoria()
         {
-            memoria = new int[384];
+            memoriaC = new int[32];
+            memoria = new int[256];
             indiceHilos = new List<int>();
-            ptrUltimo = 128; //comienza en ocho
+            ptrUltimo = 0; //comienza en ocho
         }
 
         public int[] traerBloque(int bloque)//trae el numero de bloque que se le pide, considerando que
@@ -526,9 +553,11 @@ namespace Multiprocesador
 
     class Registros
     {
+        int rL;
         int[] r;
         public Registros()
         {
+            rL = -1;
             r = new int[33];
             r[0] = 0; //registro 0 siempre esta en valor 0
             //registro 32 es cP
@@ -564,6 +593,30 @@ namespace Multiprocesador
         }
 
     }
+
+    class elementoDirectorio {
+        char condicion;
+        bool[] estado;
+        public elementoDirectorio() {
+            condicion = 'U';
+            estado = new bool[3];
+        }
+    }
+
+    class Directorio
+    {
+        elementoDirectorio[] dir;
+        public Directorio()
+        {
+            dir = new elementoDirectorio[8];
+            for (int i = 0; i < 8; i++)
+            {
+                dir[i] = new elementoDirectorio();
+            }
+        }
+    }
+
+    
 
     class Logger {
         string global;
