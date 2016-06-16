@@ -16,15 +16,41 @@ namespace Multiprocesador
         static void Main(string[] args)
         {
             Simulador S = new Simulador(); //crea la instancia del simulador
+            multiprocesador.cpu1 = new Procesador(1);
+            multiprocesador.cpu2 = new Procesador(2);
+            multiprocesador.cpu3 = new Procesador(3);
+
             S.iniciar();
             S.ejecutar();
             Console.ReadKey();
         }
     }
 
-    public static class variablesGlobales
+    public static class multiprocesador //variables globales del multiprocesador
     {
         /**Variables globales quantum y reloj para todos los procesadores, con su set y get**/
+
+        static Procesador _cpu1;
+        public static Procesador cpu1
+        {
+            set { _cpu1 = value; }
+            get { return _cpu1; }
+        }
+
+        static Procesador _cpu2;
+        public static Procesador cpu2
+        {
+            set { _cpu2 = value; }
+            get { return _cpu2; }
+        }
+
+        static Procesador _cpu3;
+        public static Procesador cpu3
+        {
+            set { _cpu3 = value; }
+            get { return _cpu3; }
+        }
+
         static int _reloj;
         public static int reloj
         {
@@ -58,9 +84,7 @@ namespace Multiprocesador
     class Simulador
     {
         //instancias de los tres procesadores en cuestion
-        Procesador cpu1;
-        Procesador cpu2;
-        Procesador cpu3;
+        
 
         public Simulador()
         {
@@ -72,12 +96,9 @@ namespace Multiprocesador
             int hilos = Int32.Parse(Console.ReadLine());
 
             Console.Write("Digite el quantum -> ");//quantum para todos
-            variablesGlobales.quantum = Int32.Parse(Console.ReadLine());
-            variablesGlobales.q = variablesGlobales.quantum;
+            multiprocesador.quantum = Int32.Parse(Console.ReadLine());
+            multiprocesador.q = multiprocesador.quantum;
 
-            cpu1 = new Procesador(1);//crea los procesadores con el quantum, y les asigna su ID
-            cpu2 = new Procesador(2);
-            cpu3 = new Procesador(3);
 
             while (hilos-- > 0)//se dividen los hilos entre los tres cpu repartidos al 1,2,3,3,2,1,2,... y asi 
             {//sucesivamente por cuantos hilos hayan 
@@ -88,20 +109,20 @@ namespace Multiprocesador
                 {
                     case 1:
                         {
-                            cpu1.asignar(lista);
-                            cpu1.numHilos++;
+                            multiprocesador.cpu1.asignar(lista);
+                            multiprocesador.cpu1.numHilos++;
                         }
                         break;
                     case 2:
                         {
-                            cpu2.asignar(lista);
-                            cpu2.numHilos++;
+                            multiprocesador.cpu2.asignar(lista);
+                            multiprocesador.cpu2.numHilos++;
                         }
                         break;
                     case 3:
                         {
-                            cpu3.asignar(lista);
-                            cpu3.numHilos++;
+                            multiprocesador.cpu3.asignar(lista);
+                            multiprocesador.cpu3.numHilos++;
                         }
                         break;
 
@@ -110,9 +131,9 @@ namespace Multiprocesador
                 }
 
             }
-            Console.Write(cpu2.numHilos + " hilos cargados al Procesador " + cpu2.id + "\n");
-            Console.Write(cpu1.numHilos + " hilos cargados al Procesador " + cpu1.id + "\n");
-            Console.Write(cpu3.numHilos + " hilos cargados al Procesador " + cpu3.id + "\n");
+            Console.Write(multiprocesador.cpu2.numHilos + " hilos cargados al Procesador " + multiprocesador.cpu2.id + "\n");
+            Console.Write(multiprocesador.cpu1.numHilos + " hilos cargados al Procesador " + multiprocesador.cpu1.id + "\n");
+            Console.Write(multiprocesador.cpu3.numHilos + " hilos cargados al Procesador " + multiprocesador.cpu3.id + "\n");
         }
 
 
@@ -164,9 +185,9 @@ namespace Multiprocesador
 
         public void ejecutar()
         {
-            Thread hilo1 = new Thread(new ThreadStart(cpu1.ejecutar));//crea los 3 threads con la funcion de ejectuar
-            Thread hilo2 = new Thread(new ThreadStart(cpu2.ejecutar));//de cada CPU
-            Thread hilo3 = new Thread(new ThreadStart(cpu3.ejecutar));
+            Thread hilo1 = new Thread(new ThreadStart(multiprocesador.cpu1.ejecutar));//crea los 3 threads con la funcion de ejectuar
+            Thread hilo2 = new Thread(new ThreadStart(multiprocesador.cpu2.ejecutar));//de cada CPU
+            Thread hilo3 = new Thread(new ThreadStart(multiprocesador.cpu3.ejecutar));
             hilo1.Start();//le da inicio a cada uno de los threads
             hilo2.Start();
             hilo3.Start();
@@ -178,7 +199,7 @@ namespace Multiprocesador
     }
 
 
-    class Procesador
+    public class Procesador
     {
         public int reloj;
         int cicloActual;
@@ -187,6 +208,8 @@ namespace Multiprocesador
         public bool primer;             //booleano que indica si es el primer cambio de contexto que se da en el procesador
         Cache cache;
         public Memoria memoria;
+        public Directorio directorio;
+        public CacheDatos cacheD;
         public Registros registros;
         public Queue<int[]> colaHilos;
         public int id;
@@ -194,13 +217,11 @@ namespace Multiprocesador
         Logger log;
         int ciclosPorHilo;
         bool finit;
-        cacheDatos cacheD;
-        Directorio dir;
 
 
         public Procesador(int i) //constructor 
         {
-            reloj = variablesGlobales.quantum; //quantum global, digitado por el usuario
+            reloj = multiprocesador.quantum; //quantum global, digitado por el usuario
             memoria = new Memoria(); //memoria del procesador
             cache = new Cache(memoria); //cache del procesador, y se le envia la memoria del CPU para poder retribuir datos
             registros = new Registros(); // 32 registros del procesador
@@ -212,14 +233,15 @@ namespace Multiprocesador
             suspendido = 0;
             log = new Logger(i);
             ciclosPorHilo = 0;
-            cacheD = new cacheDatos();
-            dir = new Directorio();
+            cacheD = new CacheDatos();
+            directorio = new Directorio();
         }
 
         public void asignar(List<int> listaInstrucciones)
         {
             int cPInicialDelHilo = memoria.almacenarMemoria(listaInstrucciones) / 4;//guarda en memoria el hilillo que se le ponga
             crearContexto(cPInicialDelHilo);
+            
         }
 
 
@@ -234,8 +256,8 @@ namespace Multiprocesador
 
         public void reestablecerQuantum()
         {
-            reloj = variablesGlobales.q;
-            log.imprimir("Reestableciendo quantum a "+ variablesGlobales.q + " \n");
+            reloj = multiprocesador.q;
+            log.imprimir("Reestableciendo quantum a "+ multiprocesador.q + " \n");
         }
 
 
@@ -254,7 +276,8 @@ namespace Multiprocesador
                 while (reloj-- > 0 && numHilos > 0)
                 {
                     ciclosPorHilo++;
-                    if (suspendido == 0 && finit == false) {
+                    if (suspendido == 0 && finit == false)
+                    {
                         decodificar(cache.traerPalabra(cP / 4, cP % 4));
                     }
                     else if (suspendido > 0 && finit == false)
@@ -262,7 +285,7 @@ namespace Multiprocesador
                         log.imprimir("Fallo de cache, procesador suspendido por "+suspendido+" ciclos restantes \n");
                         suspendido--;
                     }
-                    variablesGlobales.barrera.SignalAndWait();
+                    multiprocesador.barrera.SignalAndWait();
                 }
                 if (finit)
                 {
@@ -283,13 +306,13 @@ namespace Multiprocesador
 
             }
             log.imprimir("El procesador " + id + " ha terminado su trabajo.\n ");
-            variablesGlobales.barrera.RemoveParticipant();
+            multiprocesador.barrera.RemoveParticipant();
             log.exportarResultados();
 
         }
 
 
-        public void decodificar(int[] instrucciones)
+        public void decodificar(int[] instrucciones/*, ref Directorio dir1, ref Directorio dir2, ref Directorio*/ )
         {
             //metodo que se encarga de decodificar los sets de instrucciones de 4 argumentos, y mapearlos en su correspondiente
             //funcion en MIPS DADDI, DADD, DMUL, ...
@@ -306,6 +329,8 @@ namespace Multiprocesador
             int i1 = instrucciones[1]; 
             int i2 = instrucciones[2];
             int i3 = instrucciones[3];
+
+            
 
             switch (codigoOp)
             {
@@ -333,9 +358,16 @@ namespace Multiprocesador
                 case 14:
                     registros.insertarValorRegistro((registros.valorRegistro(i1) / registros.valorRegistro(i2)), i3);
                 break;
+
+                case 35: //LW
+                    
+
+                break;
+
                     /***BRANCHING Y DEMAS***/
                 case 4:
-                    if (registros.valorRegistro(i1) == 0){
+                    if (registros.valorRegistro(i1) == 0)
+                    {
                         cP += i3;
                     }
                 break;
@@ -413,7 +445,7 @@ namespace Multiprocesador
 
     }
 
-    class Cache
+    public class Cache
     {
         Memoria disco; //disco en donde el cache tiene que buscar paginas 
         int[] memoria = new int[64]; //4 ints = 1 palabra, total de la memoria cache
@@ -482,20 +514,22 @@ namespace Multiprocesador
 
     }
 
-    class cacheDatos
+    public class CacheDatos
     {
-        int[] datos;
-        int[] etiqueta;
-        char[] estado;
+        public int[] datos;
+        public int[] etiqueta;
+        public char[] estado;
 
-        public cacheDatos() {
-            etiqueta = new int[4];
-            datos = new int[16];
-            estado = new char[4];
+        public CacheDatos()
+        {
+            datos    = new int [16];
+            etiqueta = new int [4];
+            estado   = new char[4];
 
-            for (int i = 0; i < 4; i++) {
+            for (int i = 0; i < 4; i++)
+            {
                 etiqueta[i] = -1;
-                estado[i] = 'U';
+                estado[i]  = 'I';
             }
             for (int i = 0; i < 16; i++)
             {
@@ -503,14 +537,105 @@ namespace Multiprocesador
             }
 
         }
+
+        public int? traerDato(int palabra, int bloque, ref Procesador cpu)//recupera un int de la cache para subirlo al procesador
+        {   //[16] [3] [24] [2] [12] [0] [14]
+            //[][][][] [][][][] [][][][] [][][][]
+            //[16][24][12][14] --> etiqueta
+            bool miss = true;
+            int? dato = null;
+            for(int i = 0; i < 4; i++)
+            {
+                if(etiqueta[i] == bloque && estado[i] != 'I')
+                {
+                    miss = false;
+                    dato = datos[i * 4 + palabra];
+                    break;
+                }
+               
+            }
+            if(miss)
+            {
+                if (bloque >= 0 && bloque < 8)
+                {
+                    falloCacheDatos(bloque, ref multiprocesador.cpu1.directorio, ref cpu);
+                }
+                else if (bloque >= 8 && bloque < 16)
+                {
+                    falloCacheDatos(bloque, ref multiprocesador.cpu2.directorio, ref cpu);
+                }
+                else if (bloque >= 16 && bloque < 24)
+                {
+                    falloCacheDatos(bloque, ref multiprocesador.cpu3.directorio, ref cpu);
+                }
+               
+            }
+            return dato;
+        }
+
+        public void escribirDatos() {
+
+        }
+
+        public void falloCacheDatos(int bloque, ref Directorio directorio, ref Procesador cpu)//directorio es el dueño actual del bloque, no al que le voy a asignar el bloque
+        {
+            Object candado = new Object();
+
+            int bloqueLocal = bloque % 8;
+            int posicion = bloque % 4;
+            int[] bloqueRetornado = new int[4];
+
+
+            if (directorio.dir[bloqueLocal].condicion == 'M')
+            {
+
+            }
+            else //El bloque no se encuentra en ninguna caché, por lo que se sube directo desde memoria sin "pedir permisos".
+            {
+
+                if(bloque >= 0 && bloque < 8)
+                {
+                    bloqueRetornado = multiprocesador.cpu1.memoria.traerBloqueDatos(bloque % 8);
+                }
+                else if (bloque >= 8 && bloque < 16)
+                {
+                    bloqueRetornado = multiprocesador.cpu2.memoria.traerBloqueDatos(bloque % 8);
+                }
+                else if (bloque >= 16 && bloque < 24)
+                {
+                    bloqueRetornado = multiprocesador.cpu3.memoria.traerBloqueDatos(bloque % 8);
+                }
+
+                
+              //  if(cpu.cacheD.e)
+                {
+
+                }
+                for(int i = 0; i < 4; i++)
+                {
+                    cpu.cacheD.datos[posicion + i] = bloqueRetornado[i];
+                }    
+
+                int numDir = cpu.id - 1;
+                directorio.dir[bloqueLocal].condicion = 'C';
+                directorio.dir[bloqueLocal].estado[numDir] = true;
+                //AGREGAR CICLO DE ATRASO!!!
+            }
+
+            lock (candado)
+            {
+
+            }
+          
+        }
     }
 
-    class Memoria
+   public class Memoria
     {
         int[] memoria; //array de memoria "disco"
         int ptrUltimo; //puntero a la ultima posicion con datos de memoria, se utiliza como offset 
         public List<int> indiceHilos;
-        int[] memoriaC;
+        public int[] memoriaC;
         public Memoria()
         {
             memoriaC = new int[32];
@@ -527,6 +652,17 @@ namespace Multiprocesador
                 bloqueRetornado[i] = memoria[(bloque * 16) + i];
             }
             return bloqueRetornado;
+        }
+
+        public int[] traerBloqueDatos(int bloque)
+        {
+            int[] bloqueretornado = new int[4];
+            for(int i = 0; i < 4; i++)
+            {
+                bloqueretornado[i] = this.memoriaC[bloque + i];
+            }
+            return bloqueretornado;
+
         }
 
         public int almacenarMemoria(List<int> instrucciones)//se le envia una lista de enteros con el contenido de un hilillo, retorna posicion inicial de hilillo
@@ -551,7 +687,7 @@ namespace Multiprocesador
         }
     }
 
-    class Registros
+    public class Registros
     {
         int rL;
         int[] r;
@@ -594,18 +730,18 @@ namespace Multiprocesador
 
     }
 
-    class elementoDirectorio {
-        char condicion;
-        bool[] estado;
+    public class elementoDirectorio {
+        public char condicion;
+        public bool[] estado;
         public elementoDirectorio() {
             condicion = 'U';
             estado = new bool[3];
         }
     }
 
-    class Directorio
+   public class Directorio
     {
-        elementoDirectorio[] dir;
+        public elementoDirectorio[] dir;
         public Directorio()
         {
             dir = new elementoDirectorio[8];
