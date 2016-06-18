@@ -360,6 +360,24 @@ namespace Multiprocesador
                 break;
 
                 case 35: //LW
+
+                    Procesador cpu = this;
+                    int? dato = this.cacheD.traerDato(i3 / 16, i3 / 4, ref cpu);
+                    switch(this.id)
+                    {
+                        case 1:
+                            multiprocesador.cpu1 = cpu;
+                            break;
+                        case 2:
+                            multiprocesador.cpu2 = cpu;
+                            break;
+                        case 3:
+                            multiprocesador.cpu3 = cpu;
+                            break;
+                    }
+                    //hay que hacer el caso if (dato == null) para que se proceda a intentar de nuevo
+                    //con el fallo de caché ya resuelto
+                    
                     
 
                 break;
@@ -538,6 +556,64 @@ namespace Multiprocesador
 
         }
 
+        public bool escribirDato(int palabra, int bloque, int dato, ref Procesador cpu)
+        {
+            bool hit = true;
+            bool miss = true;
+
+            for (int i = 0; i < 4; i++)
+            {
+                if (etiqueta[i] == bloque && estado[i] != 'I')
+                {
+                    miss = false;
+
+                    if(estado[i] == 'C')
+                    {
+                        int id = cpu.id - 1;
+                        int bloqueLocal = bloque % 8;
+                        if (bloque >= 0 && bloque < 8)
+                        {
+                            multiprocesador.cpu1.directorio.invalidarCopias(bloqueLocal, id);
+                        }
+                        else if (bloque >= 8 && bloque < 16)
+                        {
+                            multiprocesador.cpu2.directorio.invalidarCopias(bloqueLocal, id);
+                        }
+                        else if (bloque >= 16 && bloque < 24)
+                        {
+                            multiprocesador.cpu3.directorio.invalidarCopias(bloqueLocal, id);
+                        }
+                    }
+                    datos[i * 4 + palabra] = dato;//en caso de que estado sea 'M' el valor se compia encima sin mayor problema
+                    break;
+                }
+            }
+
+            if(miss)
+            {
+                hit = false;
+            }
+
+            return hit;
+        }
+
+        public void falloCacheStore(int bloque, ref Directorio directorio, ref Procesador cpu)
+        {
+            //bloque es el número de bloque buscado
+            //directorio es el directorio dueño de dicho bloque
+            //cpu es el procesador dueño de la cache
+
+            int bloqueLocal = bloque % 8;
+            int posicion = bloque % 4; //indica el bloque que va a ser reemplazado en la cache para resolver el miss
+            int[] bloqueRetornado = new int[4];
+            int bloqueSalvado = cpu.cacheD.etiqueta[posicion];//Bloque que se va a salvar en caso de que no se le pueda nada más caer encima
+
+        }
+
+
+        //Método para el LW que trae el dato solicitado en la instrucción de load
+        //En caso de que haya fallo de caché se devuelve un nulo, sin embargo antes de devolverlo
+        //se resuelve el fallo
         public int? traerDato(int palabra, int bloque, ref Procesador cpu)//recupera un int de la cache para subirlo al procesador
         {   //[16] [3] [24] [2] [12] [0] [14]
             //[][][][] [][][][] [][][][] [][][][]
@@ -557,17 +633,16 @@ namespace Multiprocesador
             {
                 if (bloque >= 0 && bloque < 8)
                 {
-                    falloCacheDatos(bloque, ref multiprocesador.cpu1.directorio, ref cpu);
+                    falloCacheDatosLoad(bloque, ref multiprocesador.cpu1.directorio, ref cpu);
                 }
                 else if (bloque >= 8 && bloque < 16)
                 {
-                    falloCacheDatos(bloque, ref multiprocesador.cpu2.directorio, ref cpu);
+                    falloCacheDatosLoad(bloque, ref multiprocesador.cpu2.directorio, ref cpu);
                 }
                 else if (bloque >= 16 && bloque < 24)
                 {
-                    falloCacheDatos(bloque, ref multiprocesador.cpu3.directorio, ref cpu);
-                }
-               
+                    falloCacheDatosLoad(bloque, ref multiprocesador.cpu3.directorio, ref cpu);
+                }          
             }
             return dato;
         }
@@ -592,35 +667,51 @@ namespace Multiprocesador
             return bloqueRetornado;
         }
 
-        public void falloCacheDatos(int bloque, ref Directorio directorio, ref Procesador cpu)//directorio es el dueño actual del bloque, no al que le voy a asignar el bloque
+        public void falloCacheDatosLoad(int bloque, ref Directorio directorio, ref Procesador cpu)//directorio es el dueño actual del bloque, no al que le voy a asignar el bloque
         {
+
+            //bloque es el número de bloque que se está buscando
+            //directorio es el directorio dueño de ese bloque
+            //cpu es el procesador desde el cual hay fallo de caché
+
             Object candado = new Object();
+
 
             int bloqueLocal = bloque % 8;
             int posicion = bloque % 4; //indica el bloque que va a ser reemplazado en la cache para resolver el miss
             int[] bloqueRetornado = new int[4];
             int bloqueSalvado = cpu.cacheD.etiqueta[posicion];//Bloque que se va a salvar en caso de que no se le pueda nada más caer encima
 
+            //Se hace lo necesario con el bloque víctima
+            procesarBloqueVictima(bloqueSalvado, posicion, ref cpu);
+            // una vez resuelto cualquier conflicto, se obtiene el bloque nuevo que se copiará en la caché
 
             if (directorio.dir[bloqueLocal].condicion == 'M')
             {
+                //En caso de que el bloque buscado esté modificado en su directorio dueño
+                //se procede a traerlo de la caché donde se encuentra
+                //con el bloque a mano se procede a copiarlo en la cache propia
+                // y en la memoria compartida donde pertenezca
                 if (bloque >= 0 && bloque < 8)
                 {
                     bloqueRetornado = traerDatoCacheRemota(bloque, ref multiprocesador.cpu1.cacheD);
+                    //se escribe en memoria el bloque obtenido de la cache
+                    multiprocesador.cpu1.memoria.escribirDatos(bloqueRetornado, bloque);
                 }
                 else if (bloque >= 8 && bloque < 16)
                 {
                     bloqueRetornado = traerDatoCacheRemota(bloque, ref multiprocesador.cpu2.cacheD);
+                    multiprocesador.cpu2.memoria.escribirDatos(bloqueRetornado, bloque);
                 }
                 else if (bloque >= 16 && bloque < 24)
                 {
-                    bloqueRetornado = traerDatoCacheRemota(bloque, ref multiprocesador.cpu3.cacheD);                                   
+                    bloqueRetornado = traerDatoCacheRemota(bloque, ref multiprocesador.cpu3.cacheD);
+                    multiprocesador.cpu3.memoria.escribirDatos(bloqueRetornado, bloque);
                 }
 
-                directorio.dir[bloqueLocal].condicion = 'C'; //Se marca como compartido en el directorio dueño anterior
             }
             else //El bloque no se encuentra en ninguna caché, por lo que se sube directo desde memoria sin "pedir permisos".
-            {
+            {    //Este es el caso en el que el bloque a traer esté compartido o uncached
                 if(bloque >= 0 && bloque < 8)
                 {
                     bloqueRetornado = multiprocesador.cpu1.memoria.traerBloqueDatos(bloque % 8);
@@ -634,64 +725,84 @@ namespace Multiprocesador
                     bloqueRetornado = multiprocesador.cpu3.memoria.traerBloqueDatos(bloque % 8);
                 }
 
-                //Se hacen los arreglos necesarios a los directorios
-                if(cpu.cacheD.estado[posicion] == 'C')
-                { 
-                    if (bloqueSalvado >= 0 && bloqueSalvado < 8)
-                    {
-                        multiprocesador.cpu1.directorio.dir[bloqueSalvado % 8].estado[cpu.id - 1] = false;
-                    }
-                    else if (bloqueSalvado >= 8 && bloqueSalvado < 16)
-                    {
-                        multiprocesador.cpu2.directorio.dir[bloqueSalvado % 8].estado[cpu.id - 1] = false;
-                    }
-                    else if (bloqueSalvado >= 16 && bloqueSalvado < 24)
-                    {
-                        multiprocesador.cpu3.directorio.dir[bloqueSalvado % 8].estado[cpu.id - 1] = false;
-                    }
-                }
-                else if(cpu.cacheD.estado[posicion] == 'M') //Si el bloque es modificado entonces se guarda primero en memoria antes de ser reemplazado
-                {
- 
-
-                    int[] bloqueCopia = new int[4];
-
-                    for(int i = 0; i < 4; i++)
-                    {
-                        bloqueCopia[i] = this.datos[posicion + i];
-                    }
-
-                    if (bloqueSalvado >= 0 && bloqueSalvado < 8)
-                    {
-                        multiprocesador.cpu1.memoria.escribirDatos(bloqueCopia, bloqueSalvado);
-                    }
-                    else if (bloqueSalvado >= 8 && bloqueSalvado < 16)
-                    {
-                        multiprocesador.cpu2.memoria.escribirDatos(bloqueCopia, bloqueSalvado);
-                    }
-                    else if (bloqueSalvado >= 16 && bloqueSalvado < 24)
-                    {
-                        multiprocesador.cpu3.memoria.escribirDatos(bloqueCopia, bloqueSalvado);
-                    }
-
-                }
-
-                for (int i = 0; i < 4; i++) //Sin importar la condición del bloque a reemplazar, una vez resuelto cualquier conflicto, se reemplaza normalmente
-                {
-                    cpu.cacheD.datos[posicion + i] = bloqueRetornado[i];
-                }
-
-                int numDir = cpu.id - 1;
-                directorio.dir[bloqueLocal].condicion = 'C';
-                directorio.dir[bloqueLocal].estado[numDir] = true;
-                //AGREGAR CICLO DE ATRASO!!!
             }
 
-            lock (candado)
+            //Como se va a subir un nuevo bloque a la caché local entonces se marca el cpu respectivo
+            //dentro del directorio dueño del bloque, además se coloca que dicho bloque ahora está compartido
+            int numDir = cpu.id - 1;
+            directorio.dir[bloqueLocal].condicion = 'C';
+            directorio.dir[bloqueLocal].estado[numDir] = true;
+            //AGREGAR CICLO DE ATRASO!!!
+            //En este punto ya se tiene el nuevo bloque a copiarse en la cache y se copia normalmente
+            //pues ya se procesó el bloque víctima
+            for (int i = 0; i < 4; i++) 
+            {
+                cpu.cacheD.datos[posicion + i] = bloqueRetornado[i];
+            }
+            //Una vez copiado el nuevo bloque en la caché entonces se cambia el estado de la caché
+            //para marcar que ese bloque se encuentra presente en la caché modificando la etiqueta
+            //y se cambia el estado para mostrar que se encuentra compartido
+            cpu.cacheD.etiqueta[posicion] = bloque;
+            cpu.cacheD.estado[posicion] = 'C';
+        }
+        
+        public void procesarBloqueVictima(int bloqueSalvado, int posicion , ref Procesador cpu)
+        {
+            //procesarBloqueVictima(int bloqueSalvado, ref Procesador cpu)
+            //Se hacen los arreglos necesarios a los directorios
+            //Tratamiento del bloque víctima
+            if (cpu.cacheD.estado[posicion] == 'C')
+            {
+                int bloque = bloqueSalvado % 8;//En este caso no se salva el bloque, solo se marca como que no está compartido en la caché correspondiente
+
+                if (bloqueSalvado >= 0 && bloqueSalvado < 8)
+                {
+                    multiprocesador.cpu1.directorio.dir[bloque].estado[cpu.id - 1] = false;
+                    multiprocesador.cpu1.directorio.revisarCampo(bloque);
+                }
+                else if (bloqueSalvado >= 8 && bloqueSalvado < 16)
+                {
+                    multiprocesador.cpu2.directorio.dir[bloque].estado[cpu.id - 1] = false;
+                    multiprocesador.cpu2.directorio.revisarCampo(bloque);
+                }
+                else if (bloqueSalvado >= 16 && bloqueSalvado < 24)
+                {
+                    multiprocesador.cpu3.directorio.dir[bloque].estado[cpu.id - 1] = false;
+                    multiprocesador.cpu3.directorio.revisarCampo(bloque);
+                }
+                 
+            }
+            else if (cpu.cacheD.estado[posicion] == 'M') //Si el bloque es modificado entonces se guarda primero en memoria antes de ser reemplazado
             {
 
+                int[] bloqueCopia = new int[4];
+
+                //Se hace una copia del bloque a salvar
+                for (int i = 0; i < 4; i++)
+                {
+                    bloqueCopia[i] = this.datos[posicion + i];
+                }
+
+                //se guarda dicho bloque en la memoria compartida respectiva
+                if (bloqueSalvado >= 0 && bloqueSalvado < 8)
+                {
+                    multiprocesador.cpu1.memoria.escribirDatos(bloqueCopia, bloqueSalvado);
+                    multiprocesador.cpu1.directorio.dir[bloqueSalvado % 8].condicion = 'U';
+                }
+                else if (bloqueSalvado >= 8 && bloqueSalvado < 16)
+                {
+                    multiprocesador.cpu2.memoria.escribirDatos(bloqueCopia, bloqueSalvado);
+                    multiprocesador.cpu2.directorio.dir[bloqueSalvado % 8].condicion = 'U';
+                }
+                else if (bloqueSalvado >= 16 && bloqueSalvado < 24)
+                {
+                    multiprocesador.cpu3.memoria.escribirDatos(bloqueCopia, bloqueSalvado);
+                    multiprocesador.cpu3.directorio.dir[bloqueSalvado % 8].condicion = 'U';
+                }
+
             }
-          
+            //No se escribe el caso en que el bloque a reemplazar sea inválido pues simplemente se reemplaza en esa situación
+           
         }
     }
 
@@ -741,6 +852,7 @@ namespace Multiprocesador
             return ptrUltimoRetornado;  // retorna posicion inicial de hilillo
         }
 
+        //Se encarga de copiar el array datos en la posición de memoria compartida indicada
         public void escribirDatos(int[] datos, int bloque ) //bloque viene sin módulo
         {
             int posicion = bloque % 8;
@@ -824,6 +936,50 @@ namespace Multiprocesador
             {
                 dir[i] = new elementoDirectorio();
             }
+        }
+
+
+        //Método que checkea en un campo del directorio a ver si está marcado como compartido
+        //Se puede dar el caso en el que se acaba de descheckear el último procesador
+        //que tenía al bloque como compartido, en dicho caso ningun procesador lo tendría en su cach'e
+        //y por lo tanto debe colocarse como "uncached"
+        //"bloque" ya debe estar modulado
+        public void revisarCampo(int bloque)      
+        {
+            bool uncached = true; 
+            //Se revisan los campos de cada cpu uno a uno                                  
+            for (int i = 0; i < 3; i++)
+            {
+                if (dir[bloque].estado[i] == true)
+                {
+                    uncached = false;//si en alguno está marcado entonces no está uncached por lo que su condición queda igual
+                    break;
+                }     
+            }    
+            //Si ninguno estaba marcado entonces hay que cambiar la condición de ese bloque a "uncached"
+            if(uncached)
+            {
+                dir[bloque].condicion = 'U';
+            }                                                                                  
+        }
+
+        //Se encarga de revisar el espacio correspondiente al bloque pasado por parámetro
+        //si el bloque está marcado para alguno de los otros cpus, entonces se desmarca
+        //id indica que procesador no debe desmarcarse pues ahora es dueño del bloque
+        public void invalidarCopias(int bloque, int id)
+        {
+            for(int i = 0; i < 3; i++)
+            {
+                if(dir[bloque].estado[i] && i != id)
+                {
+                    dir[bloque].estado[i] = false;
+                }
+                else
+                {
+                    dir[bloque].estado[i] = true;
+                }
+            }
+            dir[bloque].condicion = 'M';
         }
     }
 
