@@ -551,8 +551,7 @@ namespace Multiprocesador
                     miss = false;
                     dato = datos[i * 4 + palabra];
                     break;
-                }
-               
+                }            
             }
             if(miss)
             {
@@ -573,8 +572,24 @@ namespace Multiprocesador
             return dato;
         }
 
-        public void escribirDatos() {
+        public int[] traerDatoCacheRemota(int bloque, ref CacheDatos cache)//Método para traer un dato de una caché remota, se da en caso de un miss
+        {                                                  //y que tras revisar el directorio, el bloque buscado esté modificado
+            int[] bloqueRetornado = new int[4];
 
+            int posicion = 0;
+            for(int i = 0; i < 4; i++)
+            {
+                if (cache.etiqueta[i] == bloque && cache.estado[i] == 'M')
+                    posicion = i;
+            }
+            //tal vez hay que modular el bloque
+            //bloque = bloque % 8;
+            for (int i = 0; i < 4; i++)
+            {
+                bloqueRetornado[i] = cache.datos[posicion + i];
+            }
+
+            return bloqueRetornado;
         }
 
         public void falloCacheDatos(int bloque, ref Directorio directorio, ref Procesador cpu)//directorio es el dueño actual del bloque, no al que le voy a asignar el bloque
@@ -582,17 +597,30 @@ namespace Multiprocesador
             Object candado = new Object();
 
             int bloqueLocal = bloque % 8;
-            int posicion = bloque % 4;
+            int posicion = bloque % 4; //indica el bloque que va a ser reemplazado en la cache para resolver el miss
             int[] bloqueRetornado = new int[4];
+            int bloqueSalvado = cpu.cacheD.etiqueta[posicion];//Bloque que se va a salvar en caso de que no se le pueda nada más caer encima
 
 
             if (directorio.dir[bloqueLocal].condicion == 'M')
             {
+                if (bloque >= 0 && bloque < 8)
+                {
+                    bloqueRetornado = traerDatoCacheRemota(bloque, ref multiprocesador.cpu1.cacheD);
+                }
+                else if (bloque >= 8 && bloque < 16)
+                {
+                    bloqueRetornado = traerDatoCacheRemota(bloque, ref multiprocesador.cpu2.cacheD);
+                }
+                else if (bloque >= 16 && bloque < 24)
+                {
+                    bloqueRetornado = traerDatoCacheRemota(bloque, ref multiprocesador.cpu3.cacheD);                                   
+                }
 
+                directorio.dir[bloqueLocal].condicion = 'C'; //Se marca como compartido en el directorio dueño anterior
             }
             else //El bloque no se encuentra en ninguna caché, por lo que se sube directo desde memoria sin "pedir permisos".
             {
-
                 if(bloque >= 0 && bloque < 8)
                 {
                     bloqueRetornado = multiprocesador.cpu1.memoria.traerBloqueDatos(bloque % 8);
@@ -606,15 +634,52 @@ namespace Multiprocesador
                     bloqueRetornado = multiprocesador.cpu3.memoria.traerBloqueDatos(bloque % 8);
                 }
 
-                
-              //  if(cpu.cacheD.e)
+                //Se hacen los arreglos necesarios a los directorios
+                if(cpu.cacheD.estado[posicion] == 'C')
+                { 
+                    if (bloqueSalvado >= 0 && bloqueSalvado < 8)
+                    {
+                        multiprocesador.cpu1.directorio.dir[bloqueSalvado % 8].estado[cpu.id - 1] = false;
+                    }
+                    else if (bloqueSalvado >= 8 && bloqueSalvado < 16)
+                    {
+                        multiprocesador.cpu2.directorio.dir[bloqueSalvado % 8].estado[cpu.id - 1] = false;
+                    }
+                    else if (bloqueSalvado >= 16 && bloqueSalvado < 24)
+                    {
+                        multiprocesador.cpu3.directorio.dir[bloqueSalvado % 8].estado[cpu.id - 1] = false;
+                    }
+                }
+                else if(cpu.cacheD.estado[posicion] == 'M') //Si el bloque es modificado entonces se guarda primero en memoria antes de ser reemplazado
                 {
+ 
+
+                    int[] bloqueCopia = new int[4];
+
+                    for(int i = 0; i < 4; i++)
+                    {
+                        bloqueCopia[i] = this.datos[posicion + i];
+                    }
+
+                    if (bloqueSalvado >= 0 && bloqueSalvado < 8)
+                    {
+                        multiprocesador.cpu1.memoria.escribirDatos(bloqueCopia, bloqueSalvado);
+                    }
+                    else if (bloqueSalvado >= 8 && bloqueSalvado < 16)
+                    {
+                        multiprocesador.cpu2.memoria.escribirDatos(bloqueCopia, bloqueSalvado);
+                    }
+                    else if (bloqueSalvado >= 16 && bloqueSalvado < 24)
+                    {
+                        multiprocesador.cpu3.memoria.escribirDatos(bloqueCopia, bloqueSalvado);
+                    }
 
                 }
-                for(int i = 0; i < 4; i++)
+
+                for (int i = 0; i < 4; i++) //Sin importar la condición del bloque a reemplazar, una vez resuelto cualquier conflicto, se reemplaza normalmente
                 {
                     cpu.cacheD.datos[posicion + i] = bloqueRetornado[i];
-                }    
+                }
 
                 int numDir = cpu.id - 1;
                 directorio.dir[bloqueLocal].condicion = 'C';
@@ -674,6 +739,16 @@ namespace Multiprocesador
             int ptrUltimoRetornado = ptrUltimo; //conserva la posicion inicial del hilillo
             ptrUltimo += instrucciones.Count;//actualiza el offset
             return ptrUltimoRetornado;  // retorna posicion inicial de hilillo
+        }
+
+        public void escribirDatos(int[] datos, int bloque ) //bloque viene sin módulo
+        {
+            int posicion = bloque % 8;
+
+            for(int i = 0; i < 4; i++)
+            {
+                memoriaC[posicion + i] = datos[i];
+            }
         }
 
         public void imprimir() //imprime la memoria
