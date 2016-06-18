@@ -592,6 +592,18 @@ namespace Multiprocesador
             if(miss)
             {
                 hit = false;
+                if (bloque >= 0 && bloque < 8)
+                {
+                    falloCacheDatos(bloque, ref multiprocesador.cpu1.directorio, ref cpu);
+                }
+                else if (bloque >= 8 && bloque < 16)
+                {
+                    falloCacheDatos(bloque, ref multiprocesador.cpu2.directorio, ref cpu);
+                }
+                else if (bloque >= 16 && bloque < 24)
+                {
+                    falloCacheDatos(bloque, ref multiprocesador.cpu3.directorio, ref cpu);
+                }
             }
 
             return hit;
@@ -633,15 +645,15 @@ namespace Multiprocesador
             {
                 if (bloque >= 0 && bloque < 8)
                 {
-                    falloCacheDatosLoad(bloque, ref multiprocesador.cpu1.directorio, ref cpu);
+                    falloCacheDatos(bloque, ref multiprocesador.cpu1.directorio, ref cpu);
                 }
                 else if (bloque >= 8 && bloque < 16)
                 {
-                    falloCacheDatosLoad(bloque, ref multiprocesador.cpu2.directorio, ref cpu);
+                    falloCacheDatos(bloque, ref multiprocesador.cpu2.directorio, ref cpu);
                 }
                 else if (bloque >= 16 && bloque < 24)
                 {
-                    falloCacheDatosLoad(bloque, ref multiprocesador.cpu3.directorio, ref cpu);
+                    falloCacheDatos(bloque, ref multiprocesador.cpu3.directorio, ref cpu);
                 }          
             }
             return dato;
@@ -667,7 +679,7 @@ namespace Multiprocesador
             return bloqueRetornado;
         }
 
-        public void falloCacheDatosLoad(int bloque, ref Directorio directorio, ref Procesador cpu)//directorio es el dueño actual del bloque, no al que le voy a asignar el bloque
+        public void falloCacheDatos(int bloque, ref Directorio directorio, ref Procesador cpu)//directorio es el dueño actual del bloque, no al que le voy a asignar el bloque
         {
 
             //bloque es el número de bloque que se está buscando
