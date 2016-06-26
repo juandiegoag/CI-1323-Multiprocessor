@@ -580,13 +580,13 @@ namespace Multiprocesador
 
         public bool revisarInvalidos(List<int> inv, int bloque)
         {
-            bool finalizado = false;
+            bool finalizado = true;
             foreach (int n in inv)
             {
                 switch (n)
                 {
                     case 1:
-                        if (Monitor.TryEnter(multiprocesador.cpu1.cacheD) && !finalizado)
+                        if (Monitor.TryEnter(multiprocesador.cpu1.cacheD))
                         {
                             try
                             {
@@ -599,11 +599,11 @@ namespace Multiprocesador
                         }
                         else
                         {
-                            finalizado = true;
+                            finalizado = false;
                         }
                         break;
                     case 2:
-                        if (Monitor.TryEnter(multiprocesador.cpu2.cacheD) && !finalizado)
+                        if (Monitor.TryEnter(multiprocesador.cpu2.cacheD))
                         {
                             try
                             {
@@ -616,11 +616,11 @@ namespace Multiprocesador
                         }
                         else
                         {
-                            finalizado = true;
+                            finalizado = false;
                         }
                         break;
                     case 3:
-                        if (Monitor.TryEnter(multiprocesador.cpu3.cacheD) && !finalizado)
+                        if (Monitor.TryEnter(multiprocesador.cpu3.cacheD))
                         {
                             try
                             {
@@ -633,7 +633,7 @@ namespace Multiprocesador
                         }
                         else
                         {
-                            finalizado = true;
+                            finalizado = false;
                         }
                         break;
                 }
@@ -674,7 +674,13 @@ namespace Multiprocesador
                                         try
                                         {
                                             listaInvalidos = multiprocesador.cpu1.directorio.revisarBloque(bloqueLocal, id);
-                                            revisarInvalidos(listaInvalidos, bloque);    
+                                            if(!revisarInvalidos(listaInvalidos, bloque))
+                                            {
+                                                //Si no se logró invalidar el bloque en todas las caches
+                                                //entonces se detiene el intento de escritura y se detiene 
+                                                //el método para que vuelva a intentar hasta que logre invalidar en todas las caches
+                                                hit = false;
+                                            }    
                                             //multiprocesador.cpu1.directorio.invalidarCopias(bloqueLocal, id);
                                         }
                                         finally
@@ -960,6 +966,10 @@ namespace Multiprocesador
                     //y se cambia el estado para mostrar que se encuentra compartido
                     cpu.cacheD.etiqueta[posicion] = bloque;
                     cpu.cacheD.estado[posicion] = 'C';
+
+                    //Al final obtiene el dato directamente del bloque retornado para que pueda ser pasado
+                    //a un registro, en el caso de un load, en caso de un store dato sigue en nulo
+                    dato = (load)? bloqueRetornado[palabra] : dato;
                 }
                 finally
                 {
@@ -1116,8 +1126,8 @@ namespace Multiprocesador
                         }
                     }
                 }
+                cpu.cacheD.estado[posicion] = (termino == true) ? 'I' : cpu.cacheD.estado[posicion];            
             }
-            cpu.cacheD.estado[posicion] = (termino == true) ? 'I' : cpu.cacheD.estado[posicion];            
             return termino;
             //No se escribe el caso en que el bloque a reemplazar sea inválido pues simplemente se reemplaza en esa situación
 
