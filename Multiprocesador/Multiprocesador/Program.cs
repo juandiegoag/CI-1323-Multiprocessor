@@ -19,7 +19,7 @@ namespace Multiprocesador
             multiprocesador.cpu1 = new Procesador(1);
             multiprocesador.cpu2 = new Procesador(2);
             multiprocesador.cpu3 = new Procesador(3);
- 
+
             S.iniciar();
             S.ejecutar();
             Console.ReadKey();
@@ -97,7 +97,7 @@ namespace Multiprocesador
     class Simulador
     {
         //instancias de los tres procesadores en cuestion
-        
+
 
         public Simulador()
         {
@@ -205,7 +205,7 @@ namespace Multiprocesador
             hilo2.Start();
             hilo3.Start();
             Console.WriteLine("Simulacion finalizada. ");
- 
+
         }
     }
 
@@ -252,7 +252,7 @@ namespace Multiprocesador
         {
             int cPInicialDelHilo = memoria.almacenarMemoria(listaInstrucciones) / 4;//guarda en memoria el hilillo que se le ponga
             crearContexto(cPInicialDelHilo);
-            
+
         }
 
 
@@ -268,7 +268,7 @@ namespace Multiprocesador
         public void reestablecerQuantum()
         {
             reloj = multiprocesador.q;
-            log.imprimir("Reestableciendo quantum a "+ multiprocesador.q + " \n");
+            log.imprimir("Reestableciendo quantum a " + multiprocesador.q + " \n");
         }
 
 
@@ -280,9 +280,9 @@ namespace Multiprocesador
             }
             while (numHilos > 0)
             {
-                log.imprimir("Hilos restantes: "+numHilos+"\n");
-                log.imprimir("Quantum de proceso "+id+": "+reloj+"\n");
-                
+                log.imprimir("Hilos restantes: " + numHilos + "\n");
+                log.imprimir("Quantum de proceso " + id + ": " + reloj + "\n");
+
 
                 while (reloj-- > 0 && numHilos > 0)
                 {
@@ -293,7 +293,7 @@ namespace Multiprocesador
                     }
                     else if (suspendido > 0 && finit == false)
                     {
-                        log.imprimir("Fallo de cache, procesador suspendido por "+suspendido+" ciclos restantes \n");
+                        log.imprimir("Fallo de cache, procesador suspendido por " + suspendido + " ciclos restantes \n");
                         suspendido--;
                     }
                     multiprocesador.barrera.SignalAndWait();
@@ -330,14 +330,14 @@ namespace Multiprocesador
             log.imprimir("Procesador " + id + " ejecutando instruccion:\n");
             for (int i = 0; i < 4; i++)
             {
-                log.imprimir( instrucciones[i] + " ");
+                log.imprimir(instrucciones[i] + " ");
             }
             log.imprimir("\n");
-             
+
 
             int codigoOp = instrucciones[0]; //codigo de instruccion
             /*registros o inmediatos */
-            int i1 = instrucciones[1]; 
+            int i1 = instrucciones[1];
             int i2 = instrucciones[2];
             int i3 = instrucciones[3];
 
@@ -367,6 +367,7 @@ namespace Multiprocesador
                 case 14:
                     registros.insertarValorRegistro((registros.valorRegistro(i1) / registros.valorRegistro(i2)), i3);
                     break;
+                /**** LOADS Y STORES ******/
 
                 case 35: //LW
                     Procesador cpuLoad = this;
@@ -414,41 +415,98 @@ namespace Multiprocesador
                     //con el fallo de caché ya resuelto                                        
 
                     break;
+                case 50: //Load Linked
+                    Procesador cpuLoadLinked = this;
+
+                    int posicionMemoriaLoadLinked = i3 + registros.valorRegistro(i1);
+                    registros.setRl(posicionMemoriaLoadLinked);
+
+                    int? datoLoadLinked = this.cacheD.traerDato(posicionMemoriaLoadLinked % 4, posicionMemoriaLoadLinked / 16, ref cpuLoadLinked);
+                    switch (this.id)
+                    {
+                        case 1:
+                            multiprocesador.cpu1 = cpuLoadLinked;
+                            break;
+                        case 2:
+                            multiprocesador.cpu2 = cpuLoadLinked;
+                            break;
+                        case 3:
+                            multiprocesador.cpu3 = cpuLoadLinked;
+                            break;
+                    }
+                    if (datoLoadLinked == null) { cP--; }
+                    //hay que hacer el caso if (dato == null) para que se proceda a intentar de nuevo
+                    //con el fallo de caché ya resuelto                                        
+
+                    break;
+
+                case 51: //Store conditional
+
+                    Procesador cpuStoreConditional = this;
+                    int posicionMemoriaStoreConditional = i3 + registros.valorRegistro(i1);
+
+                    if (posicionMemoriaStoreConditional == registros.getRl())
+                    {
+                        int datoEscribirConditional = registros.valorRegistro(i2);
+                        bool datoStoreConditional = this.cacheD.escribirDato(posicionMemoriaStoreConditional % 4, posicionMemoriaStoreConditional / 16, datoEscribirConditional, ref cpuStoreConditional);
+                        switch (this.id)
+                        {
+                            case 1:
+                                multiprocesador.cpu1 = cpuStoreConditional;
+                                break;
+                            case 2:
+                                multiprocesador.cpu2 = cpuStoreConditional;
+                                break;
+                            case 3:
+                                multiprocesador.cpu3 = cpuStoreConditional;
+                                break;
+                        }
+                        if (datoStoreConditional == false) { cP--; }
+                        //hay que hacer el caso if (dato == null) para que se proceda a intentar de nuevo
+                        //con el fallo de caché ya resuelto                                        
+                    }
+                    else
+                    {
+                        registros.insertarValorRegistro(0, i2);
+                    }
+                    break;
+
+
                 /***BRANCHING Y DEMAS***/
                 case 4:
                     if (registros.valorRegistro(i1) == 0)
                     {
                         cP += i3;
                     }
-                break;
+                    break;
 
                 case 5:
                     if (registros.valorRegistro(i1) != 0)
                     {
                         cP += i3;
                     }
-                break;
+                    break;
 
                 case 3:
                     registros.insertarValorRegistro(cP, 31);
-                    cP += i3/4;
-                break;
+                    cP += i3 / 4;
+                    break;
 
                 case 2:
                     cP = registros.valorRegistro(i1);
-                break;
+                    break;
                 case 63:
                     numHilos--;
-                    log.imprimir("\nHilo finalizado en el procesador: " + id); 
-                    log.imprimir("\nTotal de ciclos para la ejecucion del hilo: " + ciclosPorHilo+ "\n");
+                    log.imprimir("\nHilo finalizado en el procesador: " + id);
+                    log.imprimir("\nTotal de ciclos para la ejecucion del hilo: " + ciclosPorHilo + "\n");
                     ciclosPorHilo = 0;
                     finit = true;
                     log.imprimir(registros.imprimir());
                     log.imprimir("\n FIN \n");  //terminar 
-                break;
+                    break;
 
                 default:
-                break;
+                    break;
 
             }
             cP++;       //Incrementar PC
@@ -465,7 +523,7 @@ namespace Multiprocesador
             colaHilos.Enqueue(estadoAnterior);
             log.imprimir("Cargando registros de contexto nuevo");
             insertarContexto();
-            log.imprimir("Nuevo CP es: "+ cP +"\n");
+            log.imprimir("Nuevo CP es: " + cP + "\n");
         }
 
         public void insertarContexto()
@@ -524,7 +582,7 @@ namespace Multiprocesador
                 {
                     for (int j = 0; j < 4; j++)
                     {//busca en disco la palabra que se necesita y la devuelve
-                        palabraRetornada[j] = memoria[(i*16) + (palabra * 4) + j];
+                        palabraRetornada[j] = memoria[(i * 16) + (palabra * 4) + j];
                     }
                     return palabraRetornada;
                 }
@@ -549,9 +607,9 @@ namespace Multiprocesador
             }
 
         }
-        
+
         /**imprimir la memoria cache**/
-        public void imprimirMem() 
+        public void imprimirMem()
         {
             Console.WriteLine("Memoria: ");
             for (int i = 0; i < 64; i++)
@@ -572,14 +630,14 @@ namespace Multiprocesador
 
         public CacheDatos()
         {
-            datos    = new int [16];
-            etiqueta = new int [4];
-            estado   = new char[4];
+            datos = new int[16];
+            etiqueta = new int[4];
+            estado = new char[4];
 
             for (int i = 0; i < 4; i++)
             {
                 etiqueta[i] = -1;
-                estado[i]  = 'I';
+                estado[i] = 'I';
             }
             for (int i = 0; i < 16; i++)
             {
@@ -686,13 +744,13 @@ namespace Multiprocesador
                                         try
                                         {
                                             listaInvalidos = multiprocesador.cpu1.directorio.revisarBloque(bloqueLocal, id);
-                                            if(!revisarInvalidos(listaInvalidos, bloque))
+                                            if (!revisarInvalidos(listaInvalidos, bloque))
                                             {
                                                 //Si no se logró invalidar el bloque en todas las caches
                                                 //entonces se detiene el intento de escritura y se detiene 
                                                 //el método para que vuelva a intentar hasta que logre invalidar en todas las caches
                                                 hit = false;
-                                            }    
+                                            }
                                             //multiprocesador.cpu1.directorio.invalidarCopias(bloqueLocal, id);
                                         }
                                         finally
@@ -708,10 +766,10 @@ namespace Multiprocesador
                                 }
                                 else if (bloque >= 8 && bloque < 16)
                                 {
-                                    if ( Monitor.TryEnter(multiprocesador.cpu2.directorio) )
-                                    {            
-                                        try      
-                                        {        
+                                    if (Monitor.TryEnter(multiprocesador.cpu2.directorio))
+                                    {
+                                        try
+                                        {
                                             listaInvalidos = multiprocesador.cpu2.directorio.revisarBloque(bloqueLocal, id);
                                             if (!revisarInvalidos(listaInvalidos, bloque))
                                             {
@@ -722,22 +780,22 @@ namespace Multiprocesador
                                             }
                                             //multiprocesador.cpu1.directorio.invalidarCopias(bloqueLocal, id);
                                         }
-                                        finally  
-                                        {        
+                                        finally
+                                        {
                                             Monitor.Exit(multiprocesador.cpu2.directorio);
-                                        }        
+                                        }
                                     }
                                     else
                                     {
                                         hit = false;
                                     }
-                                }                
+                                }
                                 else if (bloque >= 16 && bloque < 24)
-                                {                
+                                {
                                     if (Monitor.TryEnter(multiprocesador.cpu3.directorio))
-                                    {            
-                                        try      
-                                        {        
+                                    {
+                                        try
+                                        {
                                             listaInvalidos = multiprocesador.cpu3.directorio.revisarBloque(bloqueLocal, id);
                                             if (!revisarInvalidos(listaInvalidos, bloque))
                                             {
@@ -748,22 +806,22 @@ namespace Multiprocesador
                                             }
                                             //multiprocesador.cpu1.directorio.invalidarCopias(bloqueLocal, id);
                                         }
-                                        finally  
-                                        {        
+                                        finally
+                                        {
                                             Monitor.Exit(multiprocesador.cpu3);
-                                        }        
+                                        }
                                     }
                                     else
                                     {
                                         hit = false;
                                     }
-                                }                
-                                                 
+                                }
+
                                 //método para invalidar en las caches
-                                                 
-                            }                    
-                                                 
-                            if(hit)              
+
+                            }
+
+                            if (hit)
                             {
                                 datos[i * 4 + palabra] = dato;//en caso de que estado sea 'M' el valor se compia encima sin mayor problema
                                 break;
@@ -773,17 +831,17 @@ namespace Multiprocesador
 
                     if (miss)
                     {
-                         
+
                         if (bloque >= 0 && bloque < 8)
                         {
-                            if(procesarBloqueVictima(bloqueSalvado, posicion, ref cpu))
+                            if (procesarBloqueVictima(bloqueSalvado, posicion, ref cpu))
                             {
                                 pinga = falloCacheDatos(bloque, palabra, ref multiprocesador.cpu1.directorio, ref cpu);
                             }
                         }
                         else if (bloque >= 8 && bloque < 16)
                         {
-                            if(procesarBloqueVictima(bloqueSalvado, posicion, ref cpu))
+                            if (procesarBloqueVictima(bloqueSalvado, posicion, ref cpu))
                             {
                                 pinga = falloCacheDatos(bloque, palabra, ref multiprocesador.cpu2.directorio, ref cpu);
                             }
@@ -821,9 +879,9 @@ namespace Multiprocesador
 
         public void escribirEnCache(int dato, int bloque, int palabra)
         {
-            for(int i = 0; i < 4; i++)
+            for (int i = 0; i < 4; i++)
             {
-                if(bloque == etiqueta[i])
+                if (bloque == etiqueta[i])
                 {
                     datos[i * 4 + palabra] = dato;
                     break;
@@ -833,9 +891,9 @@ namespace Multiprocesador
 
         public void invalidarBloque(int bloque)
         {
-            for(int i = 0; i < 4; i++)
+            for (int i = 0; i < 4; i++)
             {
-                if(etiqueta[i] == bloque)
+                if (etiqueta[i] == bloque)
                 {
                     estado[i] = 'I';
                     break;
@@ -873,20 +931,20 @@ namespace Multiprocesador
                         {
                             if (procesarBloqueVictima(bloqueSalvado, posicion, ref cpu))
                             {
-                               dato = falloCacheDatos(bloque, palabra, ref multiprocesador.cpu1.directorio, ref cpu);
-                            }  
-                        }      
+                                dato = falloCacheDatos(bloque, palabra, ref multiprocesador.cpu1.directorio, ref cpu);
+                            }
+                        }
                         else if (bloque >= 8 && bloque < 16)
-                        {      
+                        {
                             if (procesarBloqueVictima(bloqueSalvado, posicion, ref cpu))
-                            {  
+                            {
                                 dato = falloCacheDatos(bloque, palabra, ref multiprocesador.cpu2.directorio, ref cpu);
-                            }  
-                        }      
+                            }
+                        }
                         else if (bloque >= 16 && bloque < 24)
-                        {      
+                        {
                             if (procesarBloqueVictima(bloqueSalvado, posicion, ref cpu))
-                            {  
+                            {
                                 dato = falloCacheDatos(bloque, palabra, ref multiprocesador.cpu3.directorio, ref cpu);
                             }
                         }
@@ -905,7 +963,7 @@ namespace Multiprocesador
             int[] bloqueRetornado = new int[4];
 
             int posicion = 0;
-            for(int i = 0; i < 4; i++)
+            for (int i = 0; i < 4; i++)
             {
                 if (cache.etiqueta[i] == bloque && cache.estado[i] == 'M')
                     posicion = i;
@@ -1024,7 +1082,7 @@ namespace Multiprocesador
 
                     }
 
-                    if(finalizado)
+                    if (finalizado)
                     {
                         //Como se va a subir un nuevo bloque a la caché local entonces se marca el cpu respectivo
                         //dentro del directorio dueño del bloque, además se coloca que dicho bloque ahora está compartido
@@ -1051,7 +1109,7 @@ namespace Multiprocesador
                 }
                 finally
                 {
-                    Monitor.Exit(cpu.directorio);
+                    Monitor.Exit(directorio.dir);
                 }
 
             }
@@ -1061,9 +1119,9 @@ namespace Multiprocesador
             }
             return dato;
         }
-        
 
-        public bool procesarBloqueVictima(int bloqueSalvado, int posicion , ref Procesador cpu)
+
+        public bool procesarBloqueVictima(int bloqueSalvado, int posicion, ref Procesador cpu)
         {
             bool termino = true;
             if (cpu.cacheD.estado[posicion] != 'I')
@@ -1106,7 +1164,7 @@ namespace Multiprocesador
                             finally
                             {
                                 Monitor.Exit(multiprocesador.cpu2.directorio);
-                            }                                                   
+                            }
                         }
                         else
                         {
@@ -1204,7 +1262,7 @@ namespace Multiprocesador
                         }
                     }
                 }
-                cpu.cacheD.estado[posicion] = (termino == true) ? 'I' : cpu.cacheD.estado[posicion];            
+                cpu.cacheD.estado[posicion] = (termino == true) ? 'I' : cpu.cacheD.estado[posicion];
             }
             return termino;
             //No se escribe el caso en que el bloque a reemplazar sea inválido pues simplemente se reemplaza en esa situación
@@ -1212,7 +1270,7 @@ namespace Multiprocesador
         }
     }
 
-   public class Memoria
+    public class Memoria
     {
         int[] memoria; //array de memoria "disco"
         int ptrUltimo; //puntero a la ultima posicion con datos de memoria, se utiliza como offset 
@@ -1239,7 +1297,7 @@ namespace Multiprocesador
         public int[] traerBloqueDatos(int bloque)
         {
             int[] bloqueretornado = new int[4];
-            for(int i = 0; i < 4; i++)
+            for (int i = 0; i < 4; i++)
             {
                 bloqueretornado[i] = this.memoriaC[bloque + i];
             }
@@ -1259,11 +1317,11 @@ namespace Multiprocesador
         }
 
         //Se encarga de copiar el array datos en la posición de memoria compartida indicada
-        public void escribirDatos(int[] datos, int bloque ) //bloque viene sin módulo
+        public void escribirDatos(int[] datos, int bloque) //bloque viene sin módulo
         {
             int posicion = bloque % 8;
 
-            for(int i = 0; i < 4; i++)
+            for (int i = 0; i < 4; i++)
             {
                 memoriaC[posicion + i] = datos[i];
             }
@@ -1297,25 +1355,40 @@ namespace Multiprocesador
             return r;
         }
 
+        public void setRl(int rl)
+        {
+            this.rL = rl;
+        }
+
+        public int getRl()
+        {
+            return this.rL;
+        }
+
         public void setReg(int[] regs)
         {
             Array.Copy(regs, r, 33);
         }
 
-        public int valorRegistro(int x) {
+        public int valorRegistro(int x)
+        {
             return r[x];
         }
 
-        public void insertarValorRegistro(int valor, int x) {
+        public void insertarValorRegistro(int valor, int x)
+        {
             r[x] = valor;
         }
         //Imprime los registros 
-        public string imprimir() {
+        public string imprimir()
+        {
             string regs = "";
-            for (int i = 0; i < 32; i++) {
-                regs+=("R" + i + ": "+r[i]+"\t");
-                if (i%8 == 0) {
-                    regs+=("\n");
+            for (int i = 0; i < 32; i++)
+            {
+                regs += ("R" + i + ": " + r[i] + "\t");
+                if (i % 8 == 0)
+                {
+                    regs += ("\n");
                 }
             }
             return regs;
@@ -1323,16 +1396,18 @@ namespace Multiprocesador
 
     }
 
-    public class elementoDirectorio {
+    public class elementoDirectorio
+    {
         public char condicion;
         public bool[] estado;
-        public elementoDirectorio() {
+        public elementoDirectorio()
+        {
             condicion = 'U';
             estado = new bool[3];
         }
     }
 
-   public class Directorio
+    public class Directorio
     {
         public elementoDirectorio[] dir;
         public Directorio()
@@ -1350,9 +1425,9 @@ namespace Multiprocesador
         //que tenía al bloque como compartido, en dicho caso ningun procesador lo tendría en su cach'e
         //y por lo tanto debe colocarse como "uncached"
         //"bloque" ya debe estar modulado
-        public void revisarCampo(int bloque)      
+        public void revisarCampo(int bloque)
         {
-            bool uncached = true; 
+            bool uncached = true;
             //Se revisan los campos de cada cpu uno a uno                                  
             for (int i = 0; i < 3; i++)
             {
@@ -1360,13 +1435,13 @@ namespace Multiprocesador
                 {
                     uncached = false;//si en alguno está marcado entonces no está uncached por lo que su condición queda igual
                     break;
-                }     
-            }    
+                }
+            }
             //Si ninguno estaba marcado entonces hay que cambiar la condición de ese bloque a "uncached"
-            if(uncached)
+            if (uncached)
             {
                 dir[bloque].condicion = 'U';
-            }                                                                                  
+            }
         }
 
         //Se encarga de revisar el espacio correspondiente al bloque pasado por parámetro
@@ -1374,13 +1449,13 @@ namespace Multiprocesador
         //id indica que procesador no debe desmarcarse pues ahora es dueño del bloque
         public void invalidarCopias(int bloque, int id)
         {
-            
-            for(int i = 0; i < 3; i++)
+
+            for (int i = 0; i < 3; i++)
             {
-                if(dir[bloque].estado[i] && i != id)
+                if (dir[bloque].estado[i] && i != id)
                 {
                     dir[bloque].estado[i] = false;
-                   
+
                 }
                 else
                 {
@@ -1388,13 +1463,13 @@ namespace Multiprocesador
                 }
             }
             dir[bloque].condicion = 'M';
-            
+
         }
 
         //Metodo de revisar bloque
         //Se encarga de ver cuales procesadores van a tener que ser invalidados en el directorio
         //Sin embargo no los invalida aún
-        public List <int> revisarBloque(int bloque, int id)
+        public List<int> revisarBloque(int bloque, int id)
         {
             List<int> listaCaches = new List<int>();
             for (int i = 0; i < 3; i++)
@@ -1403,30 +1478,34 @@ namespace Multiprocesador
                 {
                     listaCaches.Add(i + 1);
                 }
-               
+
             }
             return listaCaches;
         }
     }
 
-    
 
-    class Logger {
+
+    class Logger
+    {
         string global;
         string fileName;
         string path;
 
-        public Logger(int i) {
+        public Logger(int i)
+        {
             fileName = "cpu" + i;
             path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, fileName); ;
             global = "";
         }
 
-        public void imprimir(string texto) {
+        public void imprimir(string texto)
+        {
             global += texto;
         }
 
-        public void exportarResultados() {
+        public void exportarResultados()
+        {
             File.WriteAllText(path, global);
         }
 
