@@ -256,6 +256,12 @@ namespace Multiprocesador
         }
 
 
+        public void retrasar(int retraso)
+        {
+            suspendido += retraso;
+        }
+
+
         public void crearContexto(int cPdelHilo)
         {
             int[] contextoNuevo = new int[33];
@@ -390,6 +396,10 @@ namespace Multiprocesador
                     if (datoLoad == null) { cP--; }
                     //hay que hacer el caso if (dato == null) para que se proceda a intentar de nuevo
                     //con el fallo de caché ya resuelto                                        
+                    else
+                    {
+                        registros.insertarValorRegistro((int)datoLoad, i2);
+                    }
 
                     break;
                 case 43: //SW
@@ -1094,7 +1104,7 @@ namespace Multiprocesador
                         //pues ya se procesó el bloque víctima
                         for (int i = 0; i < 4; i++)
                         {
-                            cpu.cacheD.datos[posicion + i] = bloqueRetornado[i];
+                            cpu.cacheD.datos[posicion*4 + i] = bloqueRetornado[i];
                         }
                         //Una vez copiado el nuevo bloque en la caché entonces se cambia el estado de la caché
                         //para marcar que ese bloque se encuentra presente en la caché modificando la etiqueta
@@ -1279,6 +1289,10 @@ namespace Multiprocesador
         public Memoria()
         {
             memoriaC = new int[32];
+            for (int i = 0; i < 32; i++)
+            {
+                memoriaC[i] = 1;
+            }
             memoria = new int[256];
             indiceHilos = new List<int>();
             ptrUltimo = 0; //comienza en ocho

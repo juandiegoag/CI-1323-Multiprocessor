@@ -4,7 +4,6 @@ C:\Users\rick9\Documents\GitHub\CI-1323-Proyecto-\Multiprocesador\Multiprocesado
 F:\My Documents\GitHub\CI-1323-Proyecto-\Multiprocesador\Multiprocesador\bin\Debug\Multiprocesador.exe.config
 F:\My Documents\GitHub\CI-1323-Proyecto-\Multiprocesador\Multiprocesador\bin\Debug\Multiprocesador.exe
 F:\My Documents\GitHub\CI-1323-Proyecto-\Multiprocesador\Multiprocesador\bin\Debug\Multiprocesador.pdb
-F:\My Documents\GitHub\CI-1323-Proyecto-\Multiprocesador\Multiprocesador\obj\Debug\Multiprocesador.csprojResolveAssemblyReference.cache
 F:\My Documents\GitHub\CI-1323-Proyecto-\Multiprocesador\Multiprocesador\obj\Debug\Multiprocesador.exe
 F:\My Documents\GitHub\CI-1323-Proyecto-\Multiprocesador\Multiprocesador\obj\Debug\Multiprocesador.pdb
 C:\Users\Araya\Dropbox\1Semestre2016\Arquitecura\Proyecto\Multiprocesador\Multiprocesador\bin\Debug\Multiprocesador.exe.config
