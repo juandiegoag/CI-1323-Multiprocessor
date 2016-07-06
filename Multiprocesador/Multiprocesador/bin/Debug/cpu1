@@ -31,11 +31,11 @@ Fallo de cache, procesador suspendido por 1 ciclos restantes
 Procesador 1 ejecutando instruccion:
 43 0 0 260 
 Procesador 1 ejecutando instruccion:
+99 0 0 0 
+Procesador 1 ejecutando instruccion:
+98 0 0 0 
+Procesador 1 ejecutando instruccion:
 43 0 0 128 
-Procesador 1 ejecutando instruccion:
-43 0 0 132 
-Procesador 1 ejecutando instruccion:
-43 0 0 136 
 Procesador 1 ejecutando instruccion:
 -1 -1 -1 -1 
 Fallo de cache, procesador suspendido por 16 ciclos restantes 
@@ -60,16 +60,14 @@ Fallo de cache, procesador suspendido por 3 ciclos restantes
 Fallo de cache, procesador suspendido por 2 ciclos restantes 
 Fallo de cache, procesador suspendido por 1 ciclos restantes 
 Procesador 1 ejecutando instruccion:
-43 0 0 140 
+99 0 0 0 
 Procesador 1 ejecutando instruccion:
-43 0 0 144 
-Procesador 1 ejecutando instruccion:
-43 0 0 148 
+98 6 6 6 
 Procesador 1 ejecutando instruccion:
 63 0 0 0 
 
 Hilo finalizado en el procesador: 1
-Total de ciclos para la ejecucion del hilo: 42
+Total de ciclos para la ejecucion del hilo: 41
 R0: 0	
 R1: 0	R2: 0	R3: 0	R4: 0	R5: 0	R6: 0	R7: 0	R8: 0	
 R9: 0	R10: 0	R11: 0	R12: 0	R13: 0	R14: 0	R15: 0	R16: 0	

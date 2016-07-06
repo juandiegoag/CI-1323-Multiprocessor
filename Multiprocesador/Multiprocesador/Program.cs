@@ -515,6 +515,117 @@ namespace Multiprocesador
                     log.imprimir("\n FIN \n");  //terminar 
                     break;
 
+                //Casos de debugging
+
+                case 99:
+                    Console.WriteLine("\n CACHE DE DATOS ");
+                    for (int i = 0; i < 48; i++)
+                    {
+                        if (i >= 0 && i < 16)
+                        {
+                            if (i == 0)
+                            {
+                                Console.Write("\n");
+                            }
+                            if (i % 4 == 0)
+                            {
+                                Console.Write(" | Bloque " + multiprocesador.cpu1.cacheD.etiqueta[i/4] + "  " + multiprocesador.cpu1.cacheD.estado[i/4] + "   ");
+                            }
+                            Console.Write(multiprocesador.cpu1.cacheD.datos[i] + "   " ) ;
+                        }
+                        else if (i >= 16 && i < 32)
+                        {
+                            if (i == 16)
+                            {
+                                Console.Write("\n");
+                            }
+                            if (i % 4 == 0)
+                            {
+                                Console.Write(" | Bloque " + multiprocesador.cpu2.cacheD.etiqueta[(i - 16) / 4] + "  " + multiprocesador.cpu2.cacheD.estado[(i - 16) / 4] + "   ");
+                            }
+                            Console.Write(multiprocesador.cpu2.cacheD.datos[i-16] + "   ");
+                        }
+                        else if (i >= 32 && i < 48)
+                        {
+                            if (i == 32)
+                            {
+                                Console.Write("\n");
+                            }
+                            if (i % 4 == 0)
+                            {
+                                Console.Write(" | Bloque " + multiprocesador.cpu3.cacheD.etiqueta[(i - 32) / 4] + "  " + multiprocesador.cpu3.cacheD.estado[(i - 32) / 4] + "   ");
+                            }
+                            Console.Write(multiprocesador.cpu3.cacheD.datos[i-32] + "   ");
+                        }
+                    }
+                    Console.WriteLine("\n  DIRECTORIO ");
+                    elementoDirectorio iter;
+                    for (int i = 0; i < 24; i++)
+                    {
+                        if (i >= 0 && i < 8)
+                        {
+                            iter = multiprocesador.cpu1.directorio.dir[i];
+                            Console.WriteLine(i + " " + iter.condicion + " " + iter.estado[0] + " " + iter.estado[1] + " " + iter.estado[2]);
+                        }
+                        else if (i >= 8 && i < 16)
+                        {
+                            iter = multiprocesador.cpu2.directorio.dir[i - 8];
+                            Console.WriteLine(i + " " + iter.condicion + " " + iter.estado[0] + " " + iter.estado[1] + " " + iter.estado[2]);
+                        }
+                        else if (i >= 16 && i < 24)
+                        {
+                            iter = multiprocesador.cpu2.directorio.dir[i - 16];
+                            Console.WriteLine(i + " " + iter.condicion + " " + iter.estado[0] + " " + iter.estado[1] + " " + iter.estado[2]);
+                        }
+                    }
+                    break;
+
+                case 98:
+                    for (int i = 0; i < 96; i++)
+                    {
+                        if (i >= 0 && i < 32)
+                        {
+                            if (i == 0)
+                            {
+                                Console.Write("\nCPU1:  ");
+                            }
+                            if (i % 4 == 0)
+                            {
+                                Console.Write(" | B" + i / 4 + " ");
+                            }
+                            Console.Write(multiprocesador.cpu1.memoria.memoriaC[i] + " ");
+                        }
+                        if (i >= 32 && i < 64)
+                        {
+                            if (i == 32)
+                            {
+                                Console.Write("\nCPU2:  ");
+                            }
+                            if (i % 4 == 0)
+                            {
+                                Console.Write(" | B" + i / 4 + " ");
+                            }
+                            Console.Write(multiprocesador.cpu2.memoria.memoriaC[i-32] + " ");
+                        }
+                        if (i >= 64 && i < 96)
+                        {
+                            if (i == 64)
+                            {
+                                Console.Write("\nCPU3:  ");
+                            }
+                            if (i % 4 == 0)
+                            {
+                                Console.Write(" | B" + i / 4 + " ");
+                            }
+                            Console.Write(multiprocesador.cpu3.memoria.memoriaC[i-64] + " ");
+                        }
+                    }
+
+
+
+                    break;
+
+
                 default:
                     break;
 
@@ -833,6 +944,7 @@ namespace Multiprocesador
 
                             if (hit)
                             {
+                                estado[i] = 'M';
                                 datos[i * 4 + palabra] = dato;//en caso de que estado sea 'M' el valor se compia encima sin mayor problema
                                 break;
                             }
