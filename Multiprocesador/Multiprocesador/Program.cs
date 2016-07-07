@@ -872,7 +872,10 @@ namespace Multiprocesador
                                                 //el método para que vuelva a intentar hasta que logre invalidar en todas las caches
                                                 hit = false;
                                             }
-                                            //multiprocesador.cpu1.directorio.invalidarCopias(bloqueLocal, id);
+                                            else
+                                            {
+                                                multiprocesador.cpu1.directorio.invalidarCopias(bloqueLocal, id);
+                                            }
                                         }
                                         finally
                                         {
@@ -899,7 +902,10 @@ namespace Multiprocesador
                                                 //el método para que vuelva a intentar hasta que logre invalidar en todas las caches
                                                 hit = false;
                                             }
-                                            //multiprocesador.cpu1.directorio.invalidarCopias(bloqueLocal, id);
+                                            else
+                                            {
+                                                multiprocesador.cpu2.directorio.invalidarCopias(bloqueLocal, id);
+                                            }
                                         }
                                         finally
                                         {
@@ -925,7 +931,10 @@ namespace Multiprocesador
                                                 //el método para que vuelva a intentar hasta que logre invalidar en todas las caches
                                                 hit = false;
                                             }
-                                            //multiprocesador.cpu1.directorio.invalidarCopias(bloqueLocal, id);
+                                            else
+                                            {
+                                                multiprocesador.cpu3.directorio.invalidarCopias(bloqueLocal, id);
+                                            }
                                         }
                                         finally
                                         {
