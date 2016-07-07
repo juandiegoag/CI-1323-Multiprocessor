@@ -929,7 +929,7 @@ namespace Multiprocesador
                                         }
                                         finally
                                         {
-                                            Monitor.Exit(multiprocesador.cpu3);
+                                            Monitor.Exit(multiprocesador.cpu3.directorio);
                                         }
                                     }
                                     else
@@ -958,21 +958,21 @@ namespace Multiprocesador
                         {
                             if (procesarBloqueVictima(bloqueSalvado, posicion, ref cpu))
                             {
-                                pinga = falloCacheDatos(bloque, palabra, ref multiprocesador.cpu1.directorio, ref cpu);
+                                pinga = falloCacheDatos(true, bloque, palabra, ref multiprocesador.cpu1.directorio, ref cpu);
                             }
                         }
                         else if (bloque >= 8 && bloque < 16)
                         {
                             if (procesarBloqueVictima(bloqueSalvado, posicion, ref cpu))
                             {
-                                pinga = falloCacheDatos(bloque, palabra, ref multiprocesador.cpu2.directorio, ref cpu);
+                                pinga = falloCacheDatos(true, bloque, palabra, ref multiprocesador.cpu2.directorio, ref cpu);
                             }
                         }
                         else if (bloque >= 16 && bloque < 24)
                         {
                             if (procesarBloqueVictima(bloqueSalvado, posicion, ref cpu))
                             {
-                                pinga = falloCacheDatos(bloque, palabra, ref multiprocesador.cpu3.directorio, ref cpu);
+                                pinga = falloCacheDatos(true, bloque, palabra, ref multiprocesador.cpu3.directorio, ref cpu);
                             }
                         }
 
@@ -1053,21 +1053,21 @@ namespace Multiprocesador
                         {
                             if (procesarBloqueVictima(bloqueSalvado, posicion, ref cpu))
                             {
-                                dato = falloCacheDatos(bloque, palabra, ref multiprocesador.cpu1.directorio, ref cpu);
+                                dato = falloCacheDatos(false, bloque, palabra, ref multiprocesador.cpu1.directorio, ref cpu);
                             }
                         }
                         else if (bloque >= 8 && bloque < 16)
                         {
                             if (procesarBloqueVictima(bloqueSalvado, posicion, ref cpu))
                             {
-                                dato = falloCacheDatos(bloque, palabra, ref multiprocesador.cpu2.directorio, ref cpu);
+                                dato = falloCacheDatos(false, bloque, palabra, ref multiprocesador.cpu2.directorio, ref cpu);
                             }
                         }
                         else if (bloque >= 16 && bloque < 24)
                         {
                             if (procesarBloqueVictima(bloqueSalvado, posicion, ref cpu))
                             {
-                                dato = falloCacheDatos(bloque, palabra, ref multiprocesador.cpu3.directorio, ref cpu);
+                                dato = falloCacheDatos(false, bloque, palabra, ref multiprocesador.cpu3.directorio, ref cpu);
                             }
                         }
                     }
@@ -1100,7 +1100,7 @@ namespace Multiprocesador
             return bloqueRetornado;
         }
 
-        public int? falloCacheDatos(int bloque, int palabra, ref Directorio directorio, ref Procesador cpu)//directorio es el dueño actual del bloque, no al que le voy a asignar el bloque
+        public int? falloCacheDatos(bool escritura, int bloque, int palabra, ref Directorio directorio, ref Procesador cpu)//directorio es el dueño actual del bloque, no al que le voy a asignar el bloque
         {
             //el tipo indica si el fallo es de load o store
             //bloque es el número de bloque que se está buscando
@@ -1127,7 +1127,16 @@ namespace Multiprocesador
                         //se procede a traerlo de la caché donde se encuentra
                         //con el bloque a mano se procede a copiarlo en la cache propia
                         // y en la memoria compartida donde pertenezca
-                        if (bloque >= 0 && bloque < 8)
+                        int ubicacion = new int(); //busca en cual cache esta el bloque modificado
+                        for (int i = 0; i < 3; i++)
+                        {
+                            if (directorio.dir[bloqueLocal].estado[i])
+                            {
+                                ubicacion = i;
+                                break;
+                            }
+                        }
+                        if (ubicacion == 0)
                         {
                             if (Monitor.TryEnter(multiprocesador.cpu1.cacheD))
                             {
@@ -1135,6 +1144,7 @@ namespace Multiprocesador
                                 {
                                     bloqueRetornado = traerDatoCacheRemota(bloque, ref multiprocesador.cpu1.cacheD);//se escribe en memoria el bloque obtenido de la cache
                                     multiprocesador.cpu1.memoria.escribirDatos(bloqueRetornado, bloque);
+                                    multiprocesador.cpu1.cacheD.estado[posicion] = 'U';
                                 }
                                 finally
                                 {
@@ -1147,7 +1157,7 @@ namespace Multiprocesador
                             }
 
                         }
-                        else if (bloque >= 8 && bloque < 16)
+                        else if (ubicacion == 1)
                         {
                             if (Monitor.TryEnter(multiprocesador.cpu2.cacheD))
                             {
@@ -1155,6 +1165,7 @@ namespace Multiprocesador
                                 {
                                     bloqueRetornado = traerDatoCacheRemota(bloque, ref multiprocesador.cpu2.cacheD);//se escribe en memoria el bloque obtenido de la cache
                                     multiprocesador.cpu2.memoria.escribirDatos(bloqueRetornado, bloque);
+                                    multiprocesador.cpu2.cacheD.estado[posicion] = 'U';
                                 }
                                 finally
                                 {
@@ -1166,7 +1177,7 @@ namespace Multiprocesador
                                 finalizado = false;
                             }
                         }
-                        else if (bloque >= 16 && bloque < 24)
+                        else if (ubicacion == 2)
                         {
                             if (Monitor.TryEnter(multiprocesador.cpu3.cacheD))
                             {
@@ -1174,6 +1185,7 @@ namespace Multiprocesador
                                 {
                                     bloqueRetornado = traerDatoCacheRemota(bloque, ref multiprocesador.cpu3.cacheD);//se escribe en memoria el bloque obtenido de la cache
                                     multiprocesador.cpu3.memoria.escribirDatos(bloqueRetornado, bloque);
+                                    multiprocesador.cpu3.cacheD.estado[posicion] = 'U';
                                 }
                                 finally
                                 {
@@ -1209,8 +1221,18 @@ namespace Multiprocesador
                         //Como se va a subir un nuevo bloque a la caché local entonces se marca el cpu respectivo
                         //dentro del directorio dueño del bloque, además se coloca que dicho bloque ahora está compartido
                         int numDir = cpu.id - 1;
-                        directorio.dir[bloqueLocal].condicion = 'C';
-                        directorio.dir[bloqueLocal].estado[numDir] = true;
+                        directorio.dir[bloqueLocal].condicion = escritura ? 'M' : 'C';
+                        for (int j = 0; j < 3; j++)
+                        {
+                            if (j == numDir)
+                            {
+                                directorio.dir[bloqueLocal].estado[numDir] = true;
+                            }
+                            else
+                            {
+                                directorio.dir[bloqueLocal].estado[j] = false;
+                            }
+                        }
                         //AGREGAR CICLO DE ATRASO!!!
                         //En este punto ya se tiene el nuevo bloque a copiarse en la cache y se copia normalmente
                         //pues ya se procesó el bloque víctima
@@ -1222,7 +1244,7 @@ namespace Multiprocesador
                         //para marcar que ese bloque se encuentra presente en la caché modificando la etiqueta
                         //y se cambia el estado para mostrar que se encuentra compartido
                         cpu.cacheD.etiqueta[posicion] = bloque;
-                        cpu.cacheD.estado[posicion] = 'C';
+                        cpu.cacheD.estado[posicion] = escritura ? 'M' : 'C';
 
                         //Al final obtiene el dato directamente del bloque retornado para que pueda ser pasado
                         //a un registro, en el caso de un load, en caso de un store dato sigue en nulo
@@ -1449,7 +1471,7 @@ namespace Multiprocesador
 
             for (int i = 0; i < 4; i++)
             {
-                memoriaC[posicion + i] = datos[i];
+                memoriaC[posicion * 4 + i] = datos[i];
             }
         }
 
